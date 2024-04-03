@@ -13,11 +13,12 @@ parser.add_argument('--out', type = str, required= True, help = 'path to the fil
 parser.add_argument('--alpha', type = float, required = True, help ='detection probability of a peptide for the noisy-OR model')
 parser.add_argument('--beta',type = float, required = True, help = 'probability of wrong detection')
 parser.add_argument('--prior', type = float, required = True, help = 'prior assigned to all taxa')
+parser.add_argument('--regularized', type = bool, default = False, help = 'if True, the regularized version of the noisy-OR model is used')
 
 args = parser.parse_args()
 
 CTFactorgraph = CTFactorGraph(args.GraphMLPath)
-CTFactorgraph.FillInFactors(args.alpha,args.beta)
+CTFactorgraph.FillInFactors(args.alpha,args.beta,args.regularized)
 CTFactorgraph.FillInPriors(args.prior)
 CTFactorgraph.AddCTNodes()
 

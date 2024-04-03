@@ -45,8 +45,9 @@ rule RunPepGM:
      params:
           samplename = SampleName,
           DBname = ReferenceDBName,
+          regularized = Regularize,
      log : ResultsDir +'Prior{Prior}/log/{DBname}_a{alpha}_b{beta}_pepGM.log'
-     shell: 'python3  workflow/scripts/PepGM.py --GraphMLPath {input} --prior {wildcards.Prior} --alpha {wildcards.alpha} --beta {wildcards.beta} --out {output} &>> {log}'
+     shell: 'python3  workflow/scripts/PepGM.py --GraphMLPath {input} --prior {wildcards.Prior} --alpha {wildcards.alpha} --beta {wildcards.beta} --regularized {params.regularized} --out {output} &>> {log}'
 
 
 rule BarPlotResults:

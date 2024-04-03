@@ -27,7 +27,7 @@ InputSpectra = config['InputSpectra']
 ReferenceDBName = config['ReferenceDBName']
 SampleName = config['SampleName']
 Pout = config['StartFromPout']
-PoutFile = config['PoutFile']
+PoutFiles = config['PoutFiles']
 
 TaxaInPlot = config['TaxaInPlot']
 #TaxaInProteinCount = config['TaxaInProteinCount']
@@ -36,6 +36,7 @@ TaxaInPlot = config['TaxaInPlot']
 AlphaRange = config['Alpha']
 BetaRange = config['Beta']
 prior = config['prior']
+Regularize = config['Regularize']
 
 # X!Tandem parameters
 XTANDEM_DEFAULT = config['xtandem_default']

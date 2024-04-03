@@ -3,7 +3,7 @@
 # check if spectrum should be filtered or not
 def PoutToUse(condition):
     if condition:
-        return PoutFile
+        return expand('{poutfiles}', poutfiles = PoutFiles)
     else:
         return expand(ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.tsv',spectrum_name = SpectraNames)
 

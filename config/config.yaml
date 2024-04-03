@@ -6,14 +6,14 @@ ResourcesDir: 'resources/'
 
 
 #Name of folder for the Peptonizer run in the results folder
-ExperimentName: 'CAMPI1_SIHUMIx_allbacteria_s03_regularized_priors'
+ExperimentName: 'CAMPI1_SIHUMIx_allbacteria_s11_regularized'
 TaxaRank: 'species'
 
 FilterSpectra: False
 AddHostandCrapToDB: False
 
 StartFromPout: False
-PoutFile: ''
+PoutFiles: ''
 
 #xtandem parameters
 search_engine : "xtandem"
@@ -40,12 +40,14 @@ Mods:
        ["Gln->pyro-Glu",28,-17.026549, '"Q"', 'true', 'false'],
        ["Glu->pyro-Glu", 27, -18.010565, '"E"', 'true',  'false'],
        ["Ammonia-loss", 385, -17.026549, '"C"', 'true','false']] #needs to be a lists of lists with name, unimod accession, mass shift, amino acid, n term (bool), c term (bool)
-SpectrumTitlePattern: 'controllerType=[\\d]+ controllerNumber=[\\d]+ scan=[\\d]+ RTINSECONDS=[\\d]+\.[\\d]+' #regex pattern to extract spectrum title from xtandem file       
+SpectrumTitlePattern: '(Q[\\d]+_G1[\\w]+_gr60\\.[0-9]+\\.[0-9]+\\.[0-9]+\\.dta)' #regex pattern to extract spectrum title from xtandem file       
 
 
 #sample specific parameters
 #sample specific parameters
-InputSpectra: ['resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S03.mgf'] #paths to input spectra, should be list, all spectra need to be in the same directory
+InputSpectra: ['resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S11_Fraction2.mgf',
+              'resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S11_Fraction3.mgf',
+              'resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S11_Fraction4.mgf'] #paths to input spectra, should be list, all spectra need to be in the same directory
 SampleName: 'CAMPI_SIHUMIx'  #Name of the sample. Will be the subfolder of your experiment name
 ReferenceDBName: 'SIHUMI_DB1UNIPROT' # reference DB used
 
@@ -59,17 +61,16 @@ FDR: 0.01
 #PepGM parameters
 TaxaInPlot: 25      #how many taxa should appear in the final results barplot
 TaxaInProteinCount: 15 #how many taxa should appear in the protein counting barplot
-Alpha: [0.8,0.9,0.99] #increments of parameter alpha to use for the grid earch
-Beta: [0.4,0.5,0.6,0.7] #range of parameter beta to use for the grid search
-prior: [0.1,0.3,0.5]
+Alpha: [0.5,0.7,0.8,0.9,0.99] #increments of parameter alpha to use for the grid earch
+Beta: [0.01,0.05,0.2,0.3,0.4,0.5,0.6,0.7] #range of parameter beta to use for the grid search
+prior: [0.01,0.1,0.3,0.5]
+Regularize: True
 
 #ParameterEvaluationParameter
 SimilarityThreshold: 0.9
 
 #Biomasscontribution Parameters
 PosteriorThreshold: 0.9
-
-
 
 
 

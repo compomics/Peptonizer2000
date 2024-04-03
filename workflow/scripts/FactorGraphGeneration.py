@@ -447,7 +447,7 @@ class CTFactorGraph(FactorGraph):
 
         return DegreeCentrality,Closenesscentrality,BetweennessCentrality,Eigencentrality
     
-    def FillInFactors(self,alpha, beta):
+    def FillInFactors(self,alpha, beta,regularized):
         '''fills in the noisy or Factors according to detection and error probabilities given'''
 
         for node in self.nodes(data=True):                   
@@ -470,7 +470,10 @@ class CTFactorGraph(FactorGraph):
                 cpdArray_regularized[1,:] = np.add(-cpdArray_regularized[0,:],1)
                 cpdArray = np.transpose(normalize(cpdArray))
                 cpdArray_regularized = Avoidunderflow(np.transpose(normalize(cpdArray_regularized)))
-                FactorToAdd = Factor(cpdArray_regularized,['placeholder',[node[0]+'0',node[0]+'1']])
+                if regularized == True:
+                    FactorToAdd = Factor(cpdArray_regularized,['placeholder',[node[0]+'0',node[0]+'1']])
+                else:
+                    FactorToAdd = Factor(cpdArray,['placeholder',[node[0]+'0',node[0]+'1']])
                
                 #add factor & its edges to network as an extra node  
                 nx.set_node_attributes(self,{node[0]:FactorToAdd},'InitialBelief')   

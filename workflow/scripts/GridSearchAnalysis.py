@@ -74,9 +74,9 @@ def ComputeMetric(resultsfolder, output, weightsfile):
     fig, ax = plt.subplots()
     fig.set_size_inches(30,15)
     
-    ax.barh(list(range(len(Metrics))),Metrics,color = 'mediumvioletred')
+    ax.barh(list(range(len(Metrics[0:15]))),Metrics[0:15],color = 'mediumvioletred')
     plt.xticks(fontsize =35)
-    plt.yticks(list(range(len(Metrics))),Params,fontsize=25)
+    plt.yticks(list(range(len(Metrics[0:15]))),Params[0:15],fontsize=25)
 
     plt.savefig(output)
     plt.close()

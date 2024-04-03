@@ -108,7 +108,7 @@ def xtandem_executable():
     elif shutil.which("tandem.exe"):
         return ("tandem.exe")
     else:
-        #print("neither xtandem or tandem.exe is available", file=sys.stderr)
+        print("neither xtandem or tandem.exe is available", file=sys.stderr)
         sys.exit(1)
 
 

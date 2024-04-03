@@ -1,7 +1,7 @@
 results/*
 !results/.gitkeep
 
-config/*
+config/config.yaml
 !config/.gitkeep
 
 resources/*
@@ -10,6 +10,7 @@ resources/taxidMapping/protacc2taxids_virus.txt
 !resources/Databases/.gitkeep
 !resources/SampleData/.gitkeep
 !resources/test_files/
+!resources/XTandem/xtandem_default.xml
 
 resources/taxidMapping/accessions_hashed.npy
 resources/taxidMapping/taxids.txt

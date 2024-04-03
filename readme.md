@@ -129,6 +129,12 @@ To install mamba:
 conda install -n <your_env> -c conda-forge mamba
   ```
 
+Alternatively, if you do not have conda installed, you can download mamba directly together with miniforge(intructions from the [mamba installation guide](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)):
+```sh
+wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+bash Miniforge3-$(uname)-$(uname -m).sh
+```
+
 To install snakemake:
 ```sh
 conda activate <your_env>
@@ -258,7 +264,11 @@ To execut ea test run of the Peptonizer2000 using the provided files:
     - input the path to the S03 spectral file. It should be something like 'path_to_workflow_directory/resources/SampleData/S03.mgf'
 
 
-You should now me all set up to run the Peptonizer2000 on the test files. 
+You should now me all set up to run the Peptonizer2000 on the test files. In your terminal, run
+```sh
+snakemake --use-conda --cores <n>
+````
+<n> is the number of cores available on your machine to run this workflow. Make sure your mamba environment, to which you downloaded snakemake, is active.
 
 
 
