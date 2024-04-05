@@ -2,9 +2,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-CSVPath = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s8_regularized_priors/CAMPI_SIHUMIx/GraphDataframe.csv'
-peptonizer_results_file = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s8_regularized_priors/CAMPI_SIHUMIx/PeptonizerResults.csv'
-out = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s8_regularized_priors/CAMPI_SIHUMIx/PeptonizerResults_greedy.csv'
+CSVPath = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s03_new_rescore/CAMPI_SIHUMIx/GraphDataframe.csv'
+peptonizer_results_file = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s03_new_rescore/CAMPI_SIHUMIx/PeptonizerResults.csv'
+out = '/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s03_new_rescore/CAMPI_SIHUMIx/PeptonizerResults_greedy.csv'
 
 def greedy_peptide_aggregation(CSVPath, peptonizer_results_file,out):
     UnipeptResponse = pd.read_csv(CSVPath)

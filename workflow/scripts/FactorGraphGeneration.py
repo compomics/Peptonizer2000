@@ -261,6 +261,9 @@ class TaxonGraph(nx.Graph):
     def CreateFromUnipeptResponseCSV(self,CSVpath):
 
         UnipeptResponse = pd.read_csv(CSVpath)
+        #drop rows that have an entry in Highertaxa that appears only once
+        counts = UnipeptResponse['HigherTaxa'].value_counts()
+        UnipeptResponse = UnipeptResponse[UnipeptResponse['HigherTaxa'].isin(counts[counts > 1].index)]
         newGraph = nx.from_pandas_edgelist(UnipeptResponse, 'sequence', 'HigherTaxa')
         PeptideAttributes = UnipeptResponse.apply(lambda row: (row["sequence"], {'InitialBelief_0': row["score"],'InitialBelief_1': 1-row['score'],'category':'peptide'}) ,axis=1)
         TaxaAttributes = UnipeptResponse.apply(lambda row: (row["HigherTaxa"], {'category':'taxon'}) ,axis=1)

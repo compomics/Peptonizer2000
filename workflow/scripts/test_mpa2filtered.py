@@ -33,7 +33,7 @@ def generatePostRequestChunks(peptides,TargetTaxa,chunksize=10,cutoff= 1000):
     return Listofrequests
 
 
-requests_list = generatePostRequestChunks(['AEMNFNNPENGWFMDASVLFNNR','AQDLQLGFSYMF', 'HYQLSLSYSR',' YSTYSLLVPVNVGYK'],[2],chunksize=4,cutoff=1000)
+requests_list = generatePostRequestChunks(['AEMNFNNPENGWFMDASVLFNNR','AQDLQLGFSYMF', 'HYQLSLSYSR',' YSTYSLLVPVNVGYK','METLYYK'],[1],chunksize=4,cutoff=1000)
 
 for i in requests_list:
     request = requests.post(url,json.dumps(i),headers={'content-type':'application/json'}, timeout = 1800) 

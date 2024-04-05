@@ -17,4 +17,4 @@ def ExportPeptidesForUnipeptCli(input,out):
 
 
 
-ExportPeptidesForUnipeptCli('/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s8_root_new_rescore/CAMPI_SIHUMIx/UnipeptPeptides.json','/home/tanja/Peptonizer2000/Peptonizer2000/results/CAMPI1_SIHUMIx_allbacteria_s8_root_new_rescore/CAMPI_SIHUMIx/CAMPI1_SIHUMIx_allbacteria_s8_root_new_rescore_UnipeptPeptides.txt')
+ExportPeptidesForUnipeptCli('/home/tanja/Peptonizer2000/Peptonizer2000/results/S07_UniREF50/CAMPI_S07/UnipeptPeptides.json','/home/tanja/Peptonizer2000/Peptonizer2000/results/S07_UniREF50/CAMPI_S07/UnipeptPeptides.txt')
