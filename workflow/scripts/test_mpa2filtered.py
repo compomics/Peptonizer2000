@@ -24,7 +24,7 @@ def generatePostRequestChunks(peptides,TargetTaxa,chunksize=10,cutoff= 1000):
     AllTargetTaxa = []
     for Taxon in TargetTaxa:
         AllTargetTaxa.append(Taxon)
-        AllTargetTaxa.extend(ncbi.get_descendant_taxa(Taxon, collapse_subspecies=True))
+        AllTargetTaxa.extend(ncbi.get_descendant_taxa(Taxon, collapse_subspecies=False))
     
     
     Listofpeptides = [peptides[i:i + chunksize] for i in range(0, len(peptides), chunksize)]
