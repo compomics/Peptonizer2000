@@ -5,15 +5,19 @@ ResultsDir: 'results/'
 ResourcesDir: 'resources/'
 
 
+
 #Name of folder for the Peptonizer run in the results folder
-ExperimentName: 'CAMPI1_SIHUMIx_allbacteria_s03_new_rescore'
+ExperimentName: 'S07_UniREF50_no_regularization_FDR0.01'
 TaxaRank: 'species'
 
 FilterSpectra: False
 AddHostandCrapToDB: False
 
-StartFromPout: False
-PoutFiles: ''
+StartFromPout: True
+PoutFiles: '/home/tanja/Peptonizer2000/Peptonizer2000/resources/pout_files/S07.psms.tsv'
+
+StartFromUnipeptResponse: False
+PreviousUnipeptQueryResultsDir: 'seh'
 
 #xtandem parameters
 search_engine : "xtandem"
@@ -40,26 +44,20 @@ Mods:
        ["Gln->pyro-Glu",28,-17.026549, '"Q"', 'true', 'false'],
        ["Glu->pyro-Glu", 27, -18.010565, '"E"', 'true',  'false'],
        ["Ammonia-loss", 385, -17.026549, '"C"', 'true','false']] #needs to be a lists of lists with name, unimod accession, mass shift, amino acid, n term (bool), c term (bool)
-SpectrumTitlePattern: 'controllerType=[\\d]+ controllerNumber=[\\d]+ scan=[\\d]+ RTINSECONDS=[\\d]+\.[\\d]+' #regex pattern to extract spectrum title from xtandem file       
+SpectrumTitlePattern: '(controllerType=[\\d]+ controllerNumber=[\\d]+ scan=[\\d]+) RTINSECONDS=[\\d]+.[\\d]+' #regex pattern to extract spectrum title from xtandem file       
 
 
 #sample specific parameters
 #sample specific parameters
-InputSpectra: ['resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S03.mgf'] #paths to input spectra, should be list, all spectra need to be in the same directory
-SampleName: 'CAMPI_SIHUMIx'  #Name of the sample. Will be the subfolder of your experiment name
+InputSpectra: ['resources/SampleData/ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S07.mgf'] #paths to input spectra, should be list, all spectra need to be in the same directory
+SampleName: 'CAMPI_S07'  #Name of the sample. Will be the subfolder of your experiment name
 ReferenceDBName: 'SIHUMI_DB1UNIPROT' # reference DB used
 
 
 #UnipeptQueryParameters
 TaxaNumber: 150
-targetTaxa: 2   #comma separated taxa to be included in Unipept query 
-FDR: 0.01
-
-
-#UnipeptQueryParameters
-TaxaNumber: 150
 targetTaxa: 1   #comma separated taxa to be included in Unipept query 
-FDR: 0.05
+FDR: 0.01
 
 
 

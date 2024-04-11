@@ -24,13 +24,17 @@ rule UnipeptQuery:
     shell: "python3 workflow/scripts/UnipeptGetTaxonomyfromPout.py --UnipeptResponseFile {output[0]} --pep_out {output[1]} --TaxonomyQuery {params.targetTaxa} --FDR {params.FDR} --PoutFile {input} --logfile {log}" 
 
 
+def StartFromUnipept(condition):
+    if condition:
+        return [PreviousUnipeptQueryResults + 'UnipeptResponse.json', PreviousUnipeptQueryResults + 'UnipeptPeptides.json']
+    else:
+        return [ResultsDir + 'UnipeptResponse.json', ResultsDir + 'UnipeptPeptides.json']
+
 
 
 rule ParseToUnipeptCSV:
     input: 
-          ResultsDir + 'UnipeptResponse.json',
-          ResultsDir + 'UnipeptPeptides.json',
-          #ResourcesDir + 'taxa_peptidome_size.tsv'
+          StartFromUnipept(StartFromUnipeptResponse)
           
           
     params: 

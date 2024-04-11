@@ -28,6 +28,8 @@ ReferenceDBName = config['ReferenceDBName']
 SampleName = config['SampleName']
 Pout = config['StartFromPout']
 PoutFiles = config['PoutFiles']
+StartFromUnipeptResponse = config['StartFromUnipeptResponse']
+PreviousUnipeptQueryResults = config['PreviousUnipeptQueryResultsDir']
 
 TaxaInPlot = config['TaxaInPlot']
 #TaxaInProteinCount = config['TaxaInProteinCount']
