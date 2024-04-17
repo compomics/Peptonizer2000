@@ -147,14 +147,16 @@ def generatePostRequestChunks(peptides,TargetTaxa,chunksize=10,cutoff= 1000):
     :param cutoff: number of proteins a peptide is associated to above which said peptide will be removed from the query by Unipept. This enhances query speed.
     '''
     print('querying taxa ', TargetTaxa)
-    AllTargetTaxa = []
+    AllTargetTaxa = set()
     for Taxon in TargetTaxa:
-        AllTargetTaxa.append(Taxon)
-        AllTargetTaxa.extend(ncbi.get_descendant_taxa(Taxon, collapse_subspecies=False))
+        AllTargetTaxa.add(Taxon)
+        AllTargetTaxa.update(ncbi.get_descendant_taxa(Taxon, collapse_subspecies=False))
+        AllTargetTaxa.update(ncbi.get_descendant_taxa(Taxon, collapse_subspecies=True))
+
     
     
     Listofpeptides = [peptides[i:i + chunksize] for i in range(0, len(peptides), chunksize)]
-    Listofrequests = [{"cutoff":cutoff, "peptides":chunk, "taxa":AllTargetTaxa} for chunk in Listofpeptides]
+    Listofrequests = [{"cutoff":cutoff, "peptides":chunk, "taxa":list(AllTargetTaxa)} for chunk in Listofpeptides]
 
     return Listofrequests
 

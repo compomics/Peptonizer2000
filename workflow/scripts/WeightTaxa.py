@@ -62,16 +62,20 @@ def GetLineageAtSpecifiedRank(taxid, TaxaRank):
     TaxaRank:
          rank you want to get
     '''
-    RankTaxidDict =  ncbi.get_rank(ncbi.get_lineage(taxid))
-    RankTaxidDict = {rank:taxiid for taxiid,rank in RankTaxidDict.items()}
-    
-    
-    try:
-        return RankTaxidDict[str(TaxaRank)]
-        
-    except:
-        return taxid
+    taxids = set()
+    for tax in taxid:
+        RankTaxidDict = {}
+        RankTaxidDict =  ncbi.get_rank(ncbi.get_lineage(tax))
+        RankTaxidDict = {rank:taxiid for taxiid,rank in RankTaxidDict.items()}
 
+        try:
+            taxids.add(RankTaxidDict[str(TaxaRank)])
+        except:
+            taxids.add(tax)
+        
+
+    
+    return list(taxids)
 
 
 def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=True, N=0, SelectRank = True, TaxaRank = 'species'):
@@ -125,18 +129,21 @@ def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=
                               pd.json_normalize(UnipeptFrame['sequence'].map(PeptScoreDictload))], axis=1)
     # Score the degeneracy of a taxa, i.e.,
     # how conserved a peptide sequence is between taxa.
+    #map all taxids in the list in the taxa column back to their taxid at species level
+    UnipeptFrame['HigherTaxa'] = UnipeptFrame.apply(lambda row: GetLineageAtSpecifiedRank(row['taxa'],TaxaRank),axis = 1)
+
     # Divide the number of PSMs of a peptide by the number of taxa the peptide is associated with, exponentiated by 3
-    UnipeptFrame['weight'] = UnipeptFrame['psms'].div([len(element)**3 for element in UnipeptFrame['taxa']])
-    mask =[len(element)==1  for element in UnipeptFrame['taxa']]
-    UniquePSMTaxa = set(i[0] for i in UnipeptFrame['taxa'][mask])
-    UnipeptFrame = UnipeptFrame.explode('taxa', ignore_index=True)
+    UnipeptFrame['weight'] = UnipeptFrame['psms'].div([len(element)**3 for element in UnipeptFrame['HigherTaxa']])
+    mask =[len(element)==1  for element in UnipeptFrame['HigherTaxa']]
+    UniquePSMTaxa = set(i[0] for i in UnipeptFrame['HigherTaxa'][mask])
+    UnipeptFrame = UnipeptFrame.explode('HigherTaxa', ignore_index=True)
     
 
 
 
     # Sum up the weights of a taxon and sort by weight
     UnipeptFrame['log_weight'] = np.log10(UnipeptFrame['weight']+1)
-    TaxIDWeights = UnipeptFrame.groupby('taxa')['log_weight'].sum().reset_index()
+    TaxIDWeights = UnipeptFrame.groupby('HigherTaxa')['log_weight'].sum().reset_index()
     # Retrieve the proteome size per taxid as a dictionary
     # This file was previously prepared by filtering a generic accession 2 taxid mapping file
     # to swissprot (i.e., reviewed) proteins only
@@ -158,9 +165,9 @@ def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=
     #retrieves the speciefied taxonomic rank taxid in the lineage of each of the species-level taxids returned by Unipept for both the UnipeptFrame 
     # and the TaxIdWeightFrame
     if SelectRank == True:
-        TaxIDWeights['HigherTaxa'] = TaxIDWeights.apply(lambda row: GetLineageAtSpecifiedRank(row['taxa'],TaxaRank), axis = 1)
-        UnipeptFrame['HigherTaxa'] = UnipeptFrame.apply(lambda row: GetLineageAtSpecifiedRank(row['taxa'],TaxaRank), axis = 1)
-        HigherUniquePSMtaxids = set([GetLineageAtSpecifiedRank(i,TaxaRank) for i in UniquePSMTaxa])
+    #    TaxIDWeights['HigherTaxa'] = TaxIDWeights.apply(lambda row: GetLineageAtSpecifiedRank(row['taxa'],TaxaRank), axis = 1)
+    #    UnipeptFrame['HigherTaxa'] = UnipeptFrame.apply(lambda row: GetLineageAtSpecifiedRank(row['taxa'],TaxaRank), axis = 1)
+         HigherUniquePSMtaxids = UniquePSMTaxa#set([GetLineageAtSpecifiedRank(i,TaxaRank) for i in UniquePSMTaxa])
   
     
  
@@ -168,6 +175,7 @@ def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=
     #group the duplicate entries of higher up taxa and sum their weights    
     HigherTaxidWeights = TaxIDWeights.groupby('HigherTaxa')['scaled_weight'].sum().reset_index().sort_values(by=['scaled_weight'],
                                                                                           ascending=False)   
+    #HigherTaxidWeights = TaxIDWeights
     HigherTaxidWeights['Unique'] = np.where(HigherTaxidWeights['HigherTaxa'].isin(HigherUniquePSMtaxids),True,False)
 
     try:
