@@ -39,7 +39,7 @@ AlphaRange = config['Alpha']
 BetaRange = config['Beta']
 prior = config['prior']
 Regularize = config['Regularize']
-
+print(Regularize, ' inside config smk')
 # X!Tandem parameters
 XTANDEM_DEFAULT = config['xtandem_default']
 XTANDEM_FMME = config['xtandem_fmme']

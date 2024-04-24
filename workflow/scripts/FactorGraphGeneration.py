@@ -473,7 +473,9 @@ class CTFactorGraph(FactorGraph):
                 cpdArray_regularized[1,:] = np.add(-cpdArray_regularized[0,:],1)
                 cpdArray = np.transpose(normalize(cpdArray))
                 cpdArray_regularized = Avoidunderflow(np.transpose(normalize(cpdArray_regularized)))
+
                 if regularized == True:
+
                     FactorToAdd = Factor(cpdArray_regularized,['placeholder',[node[0]+'0',node[0]+'1']])
                 else:
                     FactorToAdd = Factor(cpdArray,['placeholder',[node[0]+'0',node[0]+'1']])

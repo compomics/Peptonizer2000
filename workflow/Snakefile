@@ -37,6 +37,7 @@ rule CreateFactorGraph:
      shell: 'python3 workflow/scripts/CreatePepGMGraph.py --UnipeptCSV {input} --out {output} &>> {log}'
 
 
+
 rule RunPepGM:
      benchmark: ResultsDir +'benchmark/Prior{Prior}/{DBname}_PepGM_Results_a{alpha}_b{beta}_p{Prior}.txt'
      input: ResultsDir +'{DBname}_PepGM_graph.graphml'
@@ -47,7 +48,7 @@ rule RunPepGM:
           DBname = ReferenceDBName,
           regularized = Regularize,
      log : ResultsDir +'Prior{Prior}/log/{DBname}_a{alpha}_b{beta}_pepGM.log'
-     shell: 'python3  workflow/scripts/PepGM.py --GraphMLPath {input} --prior {wildcards.Prior} --alpha {wildcards.alpha} --beta {wildcards.beta} --regularized {params.regularized} --out {output} &>> {log}'
+     shell: 'python3 workflow/scripts/PepGM.py --GraphMLPath {input} --prior {wildcards.Prior} --alpha {wildcards.alpha} --beta {wildcards.beta} --regularized_priors {params.regularized} --out {output} &>> {log}'
 
 
 rule BarPlotResults:
