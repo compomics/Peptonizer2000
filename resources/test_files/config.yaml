@@ -13,7 +13,10 @@ FilterSpectra: False
 AddHostandCrapToDB: False
 
 StartFromPout: False
-PoutFile: ''
+PoutFiles: ''
+
+StartFromUnipeptResponse: True
+PreviousUnipeptQueryResultsDir: ''
 
 #xtandem parameters
 search_engine : "xtandem"
@@ -54,7 +57,7 @@ ReferenceDBName: 'SIHUMI_DB1UNIPROT' # reference DB used
 TaxaNumber: 150
 targetTaxa: 2   #comma separated taxa to be included in Unipept query 
 FDR: 0.01
-
+Regularize: True
 
 #PepGM parameters
 TaxaInPlot: 25      #how many taxa should appear in the final results barplot
