@@ -58,5 +58,12 @@ rule RunMS2Rescore:
     output: ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.tsv'
     shell: 'cp config/config.yaml '+ResultsDir +' && ms2rescore -c {input[1]} -s {input[2]} -o {params.OutputName} -p {input[0]} -f {input[3]} '
 
+rule FilterPouT:
+    input:
+        ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.tsv'
+    output:
+        ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.filtered.tsv'
+    shell: 'python3 filterHostSpectra.py --PoutFile {input} --out {output}'
+
 
 

@@ -1,15 +1,40 @@
 ###rule for parsing percolator file
 
 # check if spectrum should be filtered or not
-def PoutToUse(condition):
-    if condition:
-        return expand('{poutfiles}', poutfiles = PoutFiles)
-    else:
+def PoutToUse(condition1,condition2):
+    if condition1 and condition2:
+        return expand('{poutfiles}.filtered', poutfiles = PoutFiles) 
+    if condition1 and not condition2:
+        return expand('{poutfiles}', poutfiles = PoutFiles) 
+    if not condition1 and condition2:
+        return expand(ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.filtered.psms.tsv',spectrum_name = SpectraNames)
+    if not condition1 and not condition2:
         return expand(ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.tsv',spectrum_name = SpectraNames)
 
-InputPoutFile = PoutToUse(Pout)
-#print(type(InputPoutFile))
 
+def FilteredOutputPout(condition1):
+    if condition1:
+        return '{poutfiles}.filtered'
+    else:
+        return ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.filtered.psms.tsv'
+
+def InputPout(condition1):
+    if condition1:
+        return '{poutfiles}'
+    else:
+        return ExperimentDir+'{spectrum_name}/ms2rescore/rescored/rescored.psms.tsv'
+
+InputPoutFile = PoutToUse(Pout,FilterSpectra)
+FilteredInputPout = InputPout(Pout)
+OutputPoutFile = FilteredOutputPout(Pout)
+
+rule FilterPout:
+    input: 
+          FilteredInputPout
+    output:
+          OutputPoutFile
+    shell: "python3 workflow/scripts/FilterPout.py --Pout {input} --out {output}"
+    
 rule UnipeptQuery:
     input: 
           InputPoutFile

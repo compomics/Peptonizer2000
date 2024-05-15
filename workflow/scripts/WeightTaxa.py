@@ -78,7 +78,7 @@ def GetLineageAtSpecifiedRank(taxid, TaxaRank):
     return list(taxids)
 
 
-def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=True, N=0, SelectRank = True, TaxaRank = 'species'):
+def WeightTaxa(UnipeptResponse, PeptScoreDict, MaxTax,*PeptidesPerTaxon, chunks=True, N=0, SelectRank = True, TaxaRank):
     """
     Weight inferred taxa based on their (1) degeneracy and (2) their proteome size.
     Parameters

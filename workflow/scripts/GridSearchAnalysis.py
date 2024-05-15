@@ -57,7 +57,7 @@ def ComputeMetric(resultsfolder, output, weightsfile):
                   
                     #compute the rank based similarity between the weight sorted taxa and the score sorted ID results
                     Matching = rbo.RankingSimilarity(Weights['HigherTaxa'].values,[int(i) for i in TaxIDS['ID'].values]).rbo()*(1/Entropy**2)
-                    Metrics.append(Matching)
+                    Metrics.append(1/Entropy**2)
     
                     #get the corresponding parameters
                     params = re.findall('\d+\.\d+',file)

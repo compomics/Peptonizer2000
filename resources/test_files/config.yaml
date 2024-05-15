@@ -15,7 +15,7 @@ AddHostandCrapToDB: False
 StartFromPout: False
 PoutFiles: ''
 
-StartFromUnipeptResponse: True
+StartFromUnipeptResponse: False
 PreviousUnipeptQueryResultsDir: ''
 
 #xtandem parameters
@@ -67,10 +67,10 @@ Beta: [0.4,0.5,0.6,0.7] #range of parameter beta to use for the grid search
 prior: [0.1,0.3,0.5]
 
 #ParameterEvaluationParameter
-#SimilarityThreshold: 0.9
+SimilarityThreshold: 0.9
 
 #Biomasscontribution Parameters
-#PosteriorThreshold: 0.9
+PosteriorThreshold: 0.9
 
 
 

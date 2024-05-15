@@ -20,7 +20,7 @@ ResultsDirStrain = config['ResultsDir']
 
 #Specific workflow settings
 FilterSpectra = config['FilterSpectra']
-AddHostandCrapToDB = config['AddHostandCrapToDB']
+AddCrapToDB = config['AddHostandCrapToDB']
 ExperimentName = config['ExperimentName']
 TaxaRank = config['TaxaRank']
 InputSpectra = config['InputSpectra']
