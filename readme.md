@@ -138,7 +138,7 @@ bash Miniforge3-$(uname)-$(uname -m).sh
 To install snakemake:
 ```sh
 conda activate <your_env>
-mamba create -c conda-forge -c bioconda -n <your_snakemake_env> snakemake
+mamba install -c conda-forge -c bioconda -n <your_snakemake_env> snakemake
 ```
 In accordance with the Snakemake recommendations, we suggest to save your sample data 
 in `resources` folder. All outputs will be saved in `results`.
@@ -255,6 +255,7 @@ To execut ea test run of the Peptonizer2000 using the provided files:
  2. In you terimnal, go to the folder resources/test_files
  3. execute the following code to download the spectral file and move the fasta file, config file and spectral file to the right directories
  ```sh
+ mkdir ../SampleData ../Databases
  wget https://ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S03.mgf -O ../SampleData/S03.mgf
  cp ./SIHUMI_DB1UNIPROT_UNI.fasta ../Databases/
  cp ./config.yaml ../../config/
