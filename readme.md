@@ -244,15 +244,15 @@ Additional (intermediate): <br>
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
-## Testing te Peptonizer
+## Testing the Peptonizer
 <!-- Testing -->
 
 To test the Peptonizer2000 and see if it is set up correctly on your machine, we provide some test files under resources/test_files. These should be dowloaded automatically if you follow the installation instructions above. The test files are a .fasta database and a zipped .mgf specturm file, from the sample S03 of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) and are also available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). The spectral file is dowloaded using wget if you follow the instructions below.
 
-To execut ea test run of the Peptonizer2000 using the provided files: 
+To execute a test run of the Peptonizer2000 using the provided files: 
  
  1. Follow the installation instructions above
- 2. In you terimnal, go to the folder resources/test_files
+ 2. In you terminal, go to the folder resources/test_files
  3. execute the following code to download the spectral file and move the fasta file, config file and spectral file to the right directories
  ```sh
  mkdir ../SampleData ../Databases
