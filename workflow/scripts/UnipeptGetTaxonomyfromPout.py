@@ -174,6 +174,7 @@ def PostInfoFromUnipeptChunks(request_json, out_file, failed_requests_file):
     
     #url = 'http://127.0.0.1:3000/mpa/pept2filtered'
     url = 'http://api.unipept.ugent.be/mpa/pept2filtered'
+    #url= ''http://rick.ugent.be/mpa/pept2filtered.json''
     print('now querying Unipept in '+str(len(request_json))+' chunks')
     
     

@@ -1,5 +1,5 @@
 from GridSearchAnalysis import *
-from PhyloTreeView import *
+#from PhyloTreeView import *
 import pandas as pd
 import os
 import argparse 
@@ -32,7 +32,7 @@ def SaveReducedCSV(filepath,output):
    
     TaxIDS.to_csv(output)
            
-
+#SaveReducedCSV('/home/tanja/Peptonizer2000/Peptonizer2000/results/S07_IGC_reg/CAMPI_SIHUMIx/Prior0.5/GUT_DB1IGC_PepGM_Results_a0.99_b0.8_p0.5.csv','/home/tanja/Peptonizer2000/Peptonizer2000/results/S07_IGC_reg/CAMPI_SIHUMIx/PeptonizerResults.csv')
 
 def MoveBestResultsPlot(filepath,out):
     '''
