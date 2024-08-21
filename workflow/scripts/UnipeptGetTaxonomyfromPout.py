@@ -17,8 +17,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--UnipeptResponseFile', type = str, required = True, help = 'path to Unipept response .json file')
 parser.add_argument('--TaxonomyQuery', required = True, help = 'taxa to query in Unipept. If querying all taxa, put [1]') 
-parser.add_argument('--FDR', type = float, required = True, help = 'min peptide score for the peptide to be included in the search')
-parser.add_argument('--PeptidesAnsScores', type = str, nargs = '+', required = True, help = 'paths to percolator(ms2rescore) Pout files')
+parser.add_argument('--PeptidesAndScores', type = str, required = True, help = 'path to tsv file with peptides and scores')
 parser.add_argument('--pep_out', type = str, required = True, help = 'path to csv out file')
 parser.add_argument('--logfile', type = str, required = True, help ='path to logfile of failed unipeptquery attempts')
 #parser.add_argument('--UnipeptRequestLim', type = int, required = False, default = 3 , help = ' number of requests allowed to be executed in parallel on the UNipept server')
@@ -201,7 +200,7 @@ async def main(request, out_file, failed_requests_file):
             await asyncio.sleep(2 ** retry)  # Exponential backoff
 
 
-pep_score_psm = parse_tsv_to_peptide_dict(args.PoutFile,args.FDR,'')
+pep_score_psm = parse_tsv_to_peptide_dict(args.PeptidesAndScores)
 UnipeptPeptides = dict()
 for peptide in pep_score_psm.keys():
     FullyTrypticPeptides = PepListNoMissedCleavages(peptide)

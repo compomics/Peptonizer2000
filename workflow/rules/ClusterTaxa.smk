@@ -1,6 +1,6 @@
 rule ClusterTaxa:
     input: 
-        ResultsDir + ReferenceDBName +'_PepGM_graph.graphml',
+        ResultsDir + 'PepGM_graph.graphml',
         ResultsDir +'TaxaWeights.csv'
     params:
         SimThreshold = 0.9

@@ -8,7 +8,6 @@ from ete3 import NCBITaxa
 parser = argparse.ArgumentParser(description = 'Downstream analysis of the grid search for the PepGM algorithm')
 parser.add_argument('--resultsfolder', required = True, help = 'folder with the results from the beliefpropagation in csv format')
 parser.add_argument('--out', required=True, help ='output png file')
-parser.add_argument('--reference_db',required = True, help = 'name of the reference datasbe used to include in the filepath string')
 parser.add_argument('--weights', required = True, help = 'path to the file of weighted taxids')
 
 args = parser.parse_args()
@@ -46,7 +45,7 @@ def MoveBestResultsPlot(filepath,out):
 
 #analyse the PepGM grid search with an empirical metric, retrieve best parameters
 Parameters = ComputeMetric(args.resultsfolder, args.out,args.weights)
-Resultsfile = args.resultsfolder+'/Prior'+str(Parameters[2]) +'/'+ args.reference_db + '_PepGM_Results_a'+str(Parameters[0])+'_b'+str(Parameters[1])+'_p'+str(Parameters[2])
+Resultsfile = args.resultsfolder+'/Prior'+str(Parameters[2]) +'/PepGM_Results_a'+str(Parameters[0])+'_b'+str(Parameters[1])+'_p'+str(Parameters[2])
 
 #save the reduced results csv
 SaveReducedCSV(Resultsfile+'.csv', args.resultsfolder +'/PeptonizerResults.csv')

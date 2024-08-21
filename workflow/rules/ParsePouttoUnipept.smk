@@ -1,14 +1,14 @@
-  rule UnipeptQuery:
+rule UnipeptQuery:
     input: 
           PeptidesAndScores
     params:
-          targetTaxa = targetTaxa,
+          targetTaxa = targetTaxa
     log: ResultsDir + 'UnipeptResponse.log'
     output: 
           ResultsDir + 'UnipeptResponse.json',
           ResultsDir + 'UnipeptPeptides.json'
     conda: 'envs/Unipeptquery.yml'   
-    shell: "python3 workflow/scripts/UnipeptGetTaxonomyfromPout.py --UnipeptResponseFile {output[0]} --pep_out {output[1]} --TaxonomyQuery {params.targetTaxa} --FDR {params.FDR} --PoutFile {input} --logfile {log}" 
+    shell: "python3 workflow/scripts/UnipeptGetTaxonomyfromPout.py --UnipeptResponseFile {output[0]} --pep_out {output[1]} --TaxonomyQuery {params.targetTaxa} --PeptidesAndScores {input} --logfile {log}" 
 
 
 def StartFromUnipept(condition):
