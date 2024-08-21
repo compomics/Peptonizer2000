@@ -76,19 +76,17 @@ the process of identifying peptides and their taxonomic origins in metaproteomic
 
 The Peptonizer2000 workflow is comprised of the following steps:
 
-1. Start by conducting a database search using X!Tandem and [MS2Rescore](https://github.com/compomics/ms2rescore).
-   The reference database has to be provided by the user.
-2. Query all identified peptides in the Unipept API,
+1. Query all identified peptides, provided by the user in a .tsv file, in the Unipept API,
    and restrict the taxonomic range queried based on any prior knowledge of the sample.
-3. Assemble the peptide-taxon associations provided by Unipept into a bipartite graph,
+2. Assemble the peptide-taxon associations provided by Unipept into a bipartite graph,
    where peptides and taxa are represented by different nodes, and an edge is drawn between a peptide and a taxon
    if the peptide is part of the taxon's proteome.
-4. Transform the bipartite graph into a factor graph using convolution trees and conditional probability table
+3. Transform the bipartite graph into a factor graph using convolution trees and conditional probability table
    factors (CPD).
-5. Run the belief propagation algorithm multiple times with different sets of CPD parameters until convergence,
+4. Run the belief propagation algorithm multiple times with different sets of CPD parameters until convergence,
    to obtain posterior probabilities of candidate taxa.
-6. Use an empirically deduced metric to determine the ideal graph parameter set.
-7. Output the top 15 scoring taxa as a results barchart. The results are also available as comma-separated files
+5. Use an empirically deduced metric to determine the ideal graph parameter set.
+6. Output the top scoring taxa as a results barchart. The results are also available as comma-separated files
    for further downstream analysis or visualizations.
 
 
@@ -106,9 +104,8 @@ The Peptonizer2000 workflow is comprised of the following steps:
 
 ## Input
 
-* Your raw spectrum file in mgf format
-* A reference database in fasta format <br>
-* A config file with your parameters for X!Tandem and MS2!Rescore and the Unipept query. A more detailed description of the configuration file can be found below. Additionally, an exemplary config file is porvided in this repository.
+* A .tsv file of your peptides output from any protoemic peptide search method. The first column should be the peptide, the second column it's score attributed by the search engine. An example is provided in test files. <br>
+* A config file with your parameters for the peptonizer2000. A more detailed description of the configuration file can be found below. Additionally, an exemplary config file is provided in this repository.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -145,8 +142,7 @@ in `resources` folder. All outputs will be saved in `results`.
 
 Additional dependencies necessary are Java and GCC.
 
-The Peptonizer2000 is tested for Linux OS and uses MS2Rescore developed 
-by the CompOmics group at University of Ghent and X!Tandem as a database search engine.<br>
+The Peptonizer2000 is tested for Linux OS. <br>
 
 All necessary binaries are autmatically installed using conda.
 
@@ -161,7 +157,6 @@ Do not change the config file location.
    <details > <summary> Peptonizer parameter </summary>
    <ul>
       <li> DataDir:  Relative path to raw spectra </li>
-      <li> DatabaseDir: Relative path to database </li>
       <li> ResultsDir: Relative path to results </li>
       <li> ResourcesDir: Relative path to resources </li> 
       <li> ExperimentName: Name of subfolder in results </li>
@@ -174,43 +169,10 @@ Do not change the config file location.
 
    <details > <summary> Sample specific parameter </summary>
    <ul>
-      <li> SpectraFileType: mgf or mzML </li>
+      <li> PeptidesAndScores: path to you .tsv file of input peptides</li>
       <li> SampleName: wildcard for spectra file and folder name </li>
-      <li> ReferenceDBName: wildcard for reference database name </li>
    </ul>
    </details>
-
-   <details > <summary> X!Tandem parameter </summary>
-   <ul>
-       <li>search_engine: Search engine name </li>
-       <li>xtandem_default: # Absolute X!Tandem default configuration file path </li>
-       <li>xtandem_fmme: Fragment mass tolerance (default=0.4) </li>
-       <li>xtandem_fmmeu: ragment mass tolerance unit (default="DA")</li>
-       <li>xtandem_pmmep: Precursor mass tolerance plus (default=100) </li>
-       <li>xtandem_pmmem: Precursor mass tolerance minus (default=100)</li>
-       <li>xtandem_pmmeu: Precursor mass tolerance unit (default="ppm") </li>
-       <li>xtandem_mods_fixed: Fixed modifications, comma separated (default="57@C")</li>
-       <li>xtandem_mods_variable: Variable modifications, e.g. "16@M", comma separated (default=None)</li>
-       <li>xtandem_mods_variable_nterm: Variable N-terminal modifications, e.g."+42.0@[", comma separated (default=None)</li>
-       <li>xtandem_add_params: Additional parameters for X!Tandem as json dictionary{"param1" : "value", "param2" : "value", ...} which will be added to thextandem_input.xml</li>
-   </ul>
-   </details>
-
-   <details > <summary> MS2Rescore parameter </summary>
-   <ul>
-       <li>RescorePipeline: Pipeline to use,
-      any of ['infer', 'pin', 'tandem', 'maxquant', 'msgfplus', 'peptideshaker']. Default: ['infer'] </li>
-       <li>RescoreFeatures: Feature sets for which to generate PIN files, 
-      any of ["searchengine", "ms2pip", "rt"]. Default:  ['searchengine', 'rt', 'ms2pip'].</li>
-       <li>RunPercolator:  Run Percolator within MS²Rescore. Default: False. </li>
-       <li>FragModel: MS2PIP model to use. Default: 'HCD' </li>
-       <li>Mods: Array of peptide mass modifications. Refer to #/definitions/modifications 
-      <a href="https://github.com/compomics/ms2rescore/blob/master/configuration.md">here</a>. </li>
-   </ul>
-   Please check the official 
-   <a href="http://compomics.github.io/projects/ms2rescore#configuration-file">MS2Rescore documentation</a>
-   for more details.
-
 
    </details>
 
@@ -218,7 +180,6 @@ Do not change the config file location.
    <ul>
        <li>TaxaNumber: # of taxa </li>
        <li>targetTaxa: Comma separated list of taxa compromised in the UniPept query. If querying all of Unipept, use '1'</li>
-       <li>FDR: FDR level, decimal</li>
    </ul> 
    </details>
 </details>
@@ -247,22 +208,18 @@ Additional (intermediate): <br>
 ## Testing the Peptonizer
 <!-- Testing -->
 
-To test the Peptonizer2000 and see if it is set up correctly on your machine, we provide some test files under resources/test_files. These should be dowloaded automatically if you follow the installation instructions above. The test files are a .fasta database and a zipped .mgf specturm file, from the sample S03 of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) and are also available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). The spectral file is dowloaded using wget if you follow the instructions below.
+To test the Peptonizer2000 and see if it is set up correctly on your machine, we provide a test file under resources/test_files. This should be dowloaded automatically if you follow the installation instructions above. The test file is a .tsv resulting from the sample S03 of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) searched against a sample specific database using X!Tandem and MS2Rescore. The original file are available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). 
 
 To execute a test run of the Peptonizer2000 using the provided files: 
  
  1. Follow the installation instructions above
  2. In you terminal, go to the folder resources/test_files
- 3. execute the following code to download the spectral file and move the fasta file, config file and spectral file to the right directories
+ 3. execute the following code to move config file to the right directory
  ```sh
- mkdir ../SampleData ../Databases
- wget https://ftp.pride.ebi.ac.uk/pride/data/archive/2022/02/PXD023217/S03.mgf -O ../SampleData/S03.mgf
- cp ./SIHUMI_DB1UNIPROT_UNI.fasta ../Databases/
  cp ./config.yaml ../../config/
  ```
- 4. Lastly, you need to make some alterations to the provided example config file.
-    - under 'xtandem_default', complete the path with the path to the current Peptonizer workflow folder
-    - input the path to the S03 spectral file. It should be something like 'path_to_workflow_directory/resources/SampleData/S03.mgf'
+ 4. You need to make some alterations to the provided example config file.
+    - input the path to the S03 .tsv file . It should be something like 'path_to_workflow_directory/resources/SampleData/S03_test.tsv'
 
 
 You should now me all set up to run the Peptonizer2000 on the test files. In your terminal, run
