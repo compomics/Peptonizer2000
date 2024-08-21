@@ -7,56 +7,49 @@ import pandas as pd
 #configuration
 WorkflowPath = os.path.dirname(os.path.realpath(workflow.snakefile))
 include: WorkflowPath +'/rules/config.smk'
-include : WorkflowPath + '/rules/CurateDatabase.smk'
-include : WorkflowPath + '/rules/XTandem.smk'
-include : WorkflowPath + '/rules/MS2Rescore.smk'
 include: WorkflowPath + '/rules/ParsePouttoUnipept.smk'
 include: WorkflowPath + '/rules/ClusterTaxa.smk'
-include: WorkflowPath + '/rules/RelativeMassContributions.smk'
 include: WorkflowPath + '/rules/GridSearchAnalysis.smk'
-#include: WorkflowPath + '/rules/searchgui+pepshaker.smk'
+
 
 
 rule all:
      input:
-          expand(ResultsDir +'Prior{Prior}/'+ReferenceDBName +'_PepGM_Results_a{alpha}_b{beta}_p{Prior}.png',alpha = AlphaRange, beta = BetaRange, Prior = prior),
-          ResultsDir +'paramcheck.png',
-          ResultsDir + 'MassContribution.png'
+          expand(ResultsDir +'Prior{Prior}/'+'PepGM_Results_a{alpha}_b{beta}_p{Prior}.png',alpha = AlphaRange, beta = BetaRange, Prior = prior),
+          ResultsDir +'paramcheck.png'
 
 
 rule CreateFactorGraph:
-     benchmark: ResultsDir +'benchmark/bench_{DBname}_PepGM_graph.txt'
+     benchmark: ResultsDir +'benchmark/bench_PepGM_graph.txt'
      input: ResultsDir + 'GraphDataframe.csv'
-     output: ResultsDir +'{DBname}_PepGM_graph.graphml'
+     output: ResultsDir +'PepGM_graph.graphml'
      conda: 'envs/graphenv.yml'
      params:
           samplename = SampleName,
-          DBname = ReferenceDBName,
           ResultsDir = ResultsDir
-     log: ResultsDir +'{DBname}.log'
+     log: ResultsDir +'Graph.log'
      shell: 'python3 workflow/scripts/CreatePepGMGraph.py --UnipeptCSV {input} --out {output} &>> {log}'
 
 
 
 rule RunPepGM:
-     benchmark: ResultsDir +'benchmark/Prior{Prior}/{DBname}_PepGM_Results_a{alpha}_b{beta}_p{Prior}.txt'
-     input: ResultsDir +'{DBname}_PepGM_graph.graphml'
-     output: ResultsDir +'Prior{Prior}/{DBname}_PepGM_Results_a{alpha}_b{beta}_p{Prior}.csv'
+     benchmark: ResultsDir +'benchmark/Prior{Prior}/PepGM_Results_a{alpha}_b{beta}_p{Prior}.txt'
+     input: ResultsDir +'PepGM_graph.graphml'
+     output: ResultsDir +'Prior{Prior}/PepGM_Results_a{alpha}_b{beta}_p{Prior}.csv'
      conda: 'envs/graphenv.yml'
      params:
           samplename = SampleName,
-          DBname = ReferenceDBName,
-          regularized = Regularize,
-     log : ResultsDir +'Prior{Prior}/log/{DBname}_a{alpha}_b{beta}_pepGM.log'
+          regularized = Regularize
+     log : ResultsDir +'Prior{Prior}/log/a{alpha}_b{beta}_pepGM.log'
      shell: 'python3 workflow/scripts/PepGM.py --GraphMLPath {input} --prior {wildcards.Prior} --alpha {wildcards.alpha} --beta {wildcards.beta} --regularized_priors {params.regularized} --out {output} &>> {log}'
 
 
 rule BarPlotResults:
-     input: ResultsDir +'Prior{Prior}/{DBname}_PepGM_Results_a{alpha}_b{beta}_p{Prior}.csv'
-     output:  ResultsDir +'Prior{Prior}/{DBname}_PepGM_Results_a{alpha}_b{beta}_p{Prior}.png',
+     input: ResultsDir +'Prior{Prior}/PepGM_Results_a{alpha}_b{beta}_p{Prior}.csv'
+     output:  ResultsDir +'Prior{Prior}/PepGM_Results_a{alpha}_b{beta}_p{Prior}.png',
      conda: 'envs/graphenv.yml'
      params: NumberofResults = TaxaInPlot
-     log : ResultsDir + 'Prior{Prior}/log/{DBname}_a{alpha}_b{beta}.log'
+     log : ResultsDir + 'Prior{Prior}/log/a{alpha}_b{beta}.log'
      shell: 'python3 workflow/scripts/BarPlotResults.py --ResultsFile {input} --NumberofResults {params.NumberofResults} --out {output} &>> {log}'
 
 

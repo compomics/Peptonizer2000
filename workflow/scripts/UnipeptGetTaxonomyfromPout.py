@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--UnipeptResponseFile', type = str, required = True, help = 'path to Unipept response .json file')
 parser.add_argument('--TaxonomyQuery', required = True, help = 'taxa to query in Unipept. If querying all taxa, put [1]') 
 parser.add_argument('--FDR', type = float, required = True, help = 'min peptide score for the peptide to be included in the search')
-parser.add_argument('--PoutFile', type = str, nargs = '+', required = True, help = 'paths to percolator(ms2rescore) Pout files')
+parser.add_argument('--PeptidesAnsScores', type = str, nargs = '+', required = True, help = 'paths to percolator(ms2rescore) Pout files')
 parser.add_argument('--pep_out', type = str, required = True, help = 'path to csv out file')
 parser.add_argument('--logfile', type = str, required = True, help ='path to logfile of failed unipeptquery attempts')
 #parser.add_argument('--UnipeptRequestLim', type = int, required = False, default = 3 , help = ' number of requests allowed to be executed in parallel on the UNipept server')
@@ -26,101 +26,43 @@ parser.add_argument('--logfile', type = str, required = True, help ='path to log
 
 args = parser.parse_args()
 
-#code adapted from pout to prot
-def Poutparser(pout_files, fdr_threshold, decoy_flag):
-    '''
-    Parses the ms2rescore pout file for peptides, psm numbers and peptide scores
-    :param pout_file: str, path to pout file(s)
-    :param fdr_threshold: float, fdr threshold below which psms are kept
-    :param decoy_flag: str, can be emtpy string, decoy flag in pout file
-    :return: dict, peptides:[score,#psms]
-    '''
 
-    pep_score = dict()
-    pep_psm = dict()
-    pep_score_psm = dict()
+def parse_tsv_to_peptide_dict(tsv_file):
+    '''
+    Parses a .tsv file for peptides and scores.
     
-    for pout_file in pout_files:
-        with open(pout_file, "r") as f:
-            next(f)  # skip header
-            for line in f:
-                # skip empty lines
-                if line.rstrip() == "":
-                    continue
-                splitted_line = line.rstrip().split("\t", maxsplit=5)
-                assert len(splitted_line) >= 6, "Input file is wrongly formatted. Make sure that the input is a valid .pout file."
-                psm_id, _, q, pep, peptide,_ = splitted_line
-                if float(q) < fdr_threshold:
-                    peptide = re.sub("\[.*?\]", "", peptide)
-                    peptide = peptide.split(".")[1]
-                    # update pep_psm
-                    if peptide not in pep_psm.keys():
-                        pep_psm[peptide] = set()
-                        pep_psm[peptide].add(psm_id)
-                    else:
-                        pep_psm[peptide].add(psm_id)
-                    # update pep_score
-                    if peptide not in pep_score.keys():
-                        if float(pep) <0.001:
-                            pep_score[peptide] = '0.001'
-                        else:
-                            pep_score[peptide] = pep          #adjustement necessary to not have 0 and 1 fuck up probability calculations
-                    else:
-                        if float(pep) <0.001:
-                            pep_score[peptide] = '0.001'
-                        else:
-                            pep_score[peptide] = min(pep,pep_score[peptide])
-                    pep_score_psm[peptide] = [pep_score[peptide],len(pep_psm[peptide])]
-                
-    return pep_score_psm
-
-def MS2RescoreOutParser(pout_files, fdr_threshold, decoy_flag):
+    :param tsv_file: str, path to the tsv file
+    :return: dict, peptides: [highest_score, #occurrences]
     '''
-    Parses the ms2rescore pout file for peptides, psm numbers and peptide scores
-    :param pout_file: str, path to pout file(s)
-    :param fdr_threshold: float, fdr threshold below which psms are kept
-    :param decoy_flag: str, can be emtpy string, decoy flag in pout file
-    :return: dict, peptides:[score,#psms]
-    '''
-
-    pep_score = dict()
-    pep_psm = dict()
-    pep_score_psm = dict()
     
-    for pout_file in pout_files:
-        with open(pout_file, "r") as f:
-            next(f)  # skip header
-            for line in f:
-                # skip empty lines
-                if line.rstrip() == "":
-                    continue
-                splitted_line = line.rstrip().split("\t")[0:8]
-                #assert len(splitted_line) >= 6, "Input file is wrongly formatted. Make sure that the input is a valid .pout file."
-                peptide, psm_id, run, colelction, collection , score, q, pep = splitted_line
-                if float(q) < fdr_threshold:
-                    peptide = re.sub("\[.*?\]", "", peptide)
-                    peptide = peptide.split("/")[0]
-                    # update pep_psm
-                    if peptide not in pep_psm.keys():
-                        pep_psm[peptide] = set()
-                        pep_psm[peptide].add(psm_id)
-                    else:
-                        pep_psm[peptide].add(psm_id)
-                    # update pep_score
-                    if peptide not in pep_score.keys():
-                        if float(pep) <0.001:
-                            pep_score[peptide] = '0.001'
-                        else:
-                            pep_score[peptide] = pep          #adjustement necessary to not have 0 and 1 fuck up probability calculations
-                    else:
-                        if float(pep) <0.001:
-                            pep_score[peptide] = '0.001'
-                        else:
-                            pep_score[peptide] = min(pep,pep_score[peptide])
-                    pep_score_psm[peptide] = [pep_score[peptide],len(pep_psm[peptide])]
-                
-    return pep_score_psm
-
+    peptide_dict = {}
+    
+    with open(tsv_file, "r") as f:
+        next(f)  # Skip header
+        for line in f:
+            if line.rstrip() == "":
+                continue
+            
+            splitted_line = line.rstrip().split("\t")
+            
+            if len(splitted_line) < 2:
+                continue  # Skip lines that don't have at least two columns
+            
+            peptide, score = splitted_line[0], float(splitted_line[1])
+            
+            # Replace score of 1 with 0.99
+            if score == 1:
+                score = 0.99
+            
+            if peptide not in peptide_dict:
+                peptide_dict[peptide] = [score, 1]
+            else:
+                # Update the highest score
+                peptide_dict[peptide][0] = max(peptide_dict[peptide][0], score)
+                # Increment occurrence count
+                peptide_dict[peptide][1] += 1
+    
+    return peptide_dict
 
 
 def PepListNoMissedCleavages(peptide):
@@ -172,9 +114,7 @@ def PostInfoFromUnipeptChunks(request_json, out_file, failed_requests_file):
 
     logging.basicConfig(filename= failed_requests_file, level=logging.INFO)
     
-    #url = 'http://127.0.0.1:3000/mpa/pept2filtered'
     url = 'http://api.unipept.ugent.be/mpa/pept2filtered'
-    #url= ''http://rick.ugent.be/mpa/pept2filtered.json''
     print('now querying Unipept in '+str(len(request_json))+' chunks')
     
     
@@ -211,62 +151,6 @@ def PostInfoFromUnipeptChunks(request_json, out_file, failed_requests_file):
         except requests.exceptions.RequestException as e:
             logging.error(f'Retry request to {url} failed with error: {e}')
 
-
-
-# #Functions for parallel asynchornous Unipept requests
-# async def fetch_data(session, url, json_input, out_file, failed_requests,i,total_chunks):
-#     try:
-        
-#         async with session.post(url, json = json_input, timeout=8600,headers={'content-type':'application/json'}) as response:
-#             response.raise_for_status()
-#             result = await response.text()
-#             with open(out_file, 'a') as f_out:
-#                 print(result, file=f_out)
-#             print('successfully queried chunk ' + str(i) + ' out of ' +str(total_chunks))
-#             return True
-        
-#     except aiohttp.ClientError as e:
-#         print('failed to query chunk ' +str(i))
-#         time.sleep(30)
-#         logging.error(f'Request to {url} failed with error: {e}')
-#         failed_requests.append((json_input, e))
-#         return False
-
-# async def limited_gather(semaphore, session, url, chunks, out_file, failed_requests,i,total_chunks):
-#     async with semaphore:
-#         return await fetch_data(session,url,chunks,out_file,failed_requests,i,total_chunks)
-
-
- 
-# async def main(request, out_file, failed_requests_file):
-#     logging.basicConfig(filename=failed_requests_file, level=logging.INFO)
-#     url = 'http://api.unipept.ugent.be/mpa/pept2filtered'
-#     print('now querying Unipept in ' + str(len(request)) + ' chunks')
-
-#     semaphore = asyncio.Semaphore(3)  # Limit the number of concurrent requests to three
-
-#     total_chunks = len(request)
-
-#     async with aiohttp.ClientSession() as session:
-#         failed_requests = []
- 
-
-#         limited_gather_tasks = []
-#         i = 0
-#         for chunk in request:
-#            task = limited_gather(semaphore, session, url, chunk, out_file, failed_requests,i,total_chunks)
-#            limited_gather_tasks.append(task)
-#            i += 1
-
-#         await asyncio.gather(*limited_gather_tasks)
-
-#         # Retry failed requests
-#         retry_tasks = []
-#         for chunk, error in failed_requests:
-#             task = limited_gather(semaphore,session, url, chunk, out_file, [],i,total_chunks)
-#             retry_tasks.append(task)
-
-#         await asyncio.gather(*retry_tasks)
 
 async def fetch_data(session, url, json_input, out_file, failed_requests, i, total_chunks):
     try:
@@ -317,7 +201,7 @@ async def main(request, out_file, failed_requests_file):
             await asyncio.sleep(2 ** retry)  # Exponential backoff
 
 
-pep_score_psm = MS2RescoreOutParser(args.PoutFile,args.FDR,'')
+pep_score_psm = parse_tsv_to_peptide_dict(args.PoutFile,args.FDR,'')
 UnipeptPeptides = dict()
 for peptide in pep_score_psm.keys():
     FullyTrypticPeptides = PepListNoMissedCleavages(peptide)
