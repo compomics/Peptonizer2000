@@ -1,0 +1,25 @@
+{
+  "name": "peptonizer",
+  "private": true,
+  "version": "0.0.9",
+  "type": "module",
+  "types": "dist/types",
+  "files": [
+    "dist"
+  ],
+  "module": "./dist/peptonizer.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && tsc -p tsconfig.json && rm -f dist/types/main.d.ts",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.3",
+    "vite": "^5.4.8"
+  },
+  "dependencies": {
+    "@types/async": "^3.2.24",
+    "async": "^3.2.6",
+    "pyodide": "^0.26.3"
+  }
+}
