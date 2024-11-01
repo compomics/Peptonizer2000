@@ -61,10 +61,8 @@ metaproteomic mass spectrometry-based samples. Originally designed for taxonomic
 mass spectrometry-based samples, we've extended PepGM's functionality to analyze metaproteomic samples by
 retrieving taxonomic information from the Unipept database.
 
-PepGM is a probabilistic graphical model developed by the eScience group at BAM (Federal Institute for Materials
-Research and Testing) that uses belief propagation to infer the taxonomic origin of peptides and taxa in viral samples.
-You can learn more about PepGM on our eScience group at BAM (Federal Institute for Materials Research and Testing).
-Please refer to our [GitHub](https://github.com/BAMeScience/PepGM) page.
+PepGM is a probabilistic graphical model developed by Tanja Holstein et al. that uses belief propagation to infer the taxonomic origin of peptides and taxa in viral samples.
+You can learn more about PepGM at [GitHub](https://github.com/BAMeScience/PepGM) page.
 
 Unipept, on the other hand, is a web-based metaproteomics analysis tool that provides taxonomic information for
 identified peptides. To make it work seamlessly with PepGM, we've extended Unipept with new functionalities that
@@ -114,37 +112,19 @@ The Peptonizer2000 workflow is comprised of the following steps:
 
 ### Prerequisites
 
-Make sure you have git installed and clone the repo:
-   ```sh
-   git clone https://github.com/BAMeScience/Peptonizer2000.git
-   ```
-The Peptonizer relies on a snakemake workflow developed with snakemake 5.10.0. <br>
-Installing snakemake requires mamba.
+## Python counterpart
+The actual code that builds the factor graph and executes the Peptonizer algorithm, is implemented in Python and can be found in the `peptonizer` folder.
 
-To install mamba:
-  ```sh
-conda install -n <your_env> -c conda-forge mamba
-  ```
+### Running as snakemake workflow
+In order to run the Peptonizer2000 on your own system, you should install Conda, Mamba and all of its dependencies.
+Follow the installation instructions step-by-step for an explanation of what you should do.
 
-Alternatively, if you do not have conda installed, you can download mamba directly together with miniforge(intructions from the [mamba installation guide](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)):
-```sh
-wget "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-bash Miniforge3-$(uname)-$(uname -m).sh
-```
-
-To install snakemake:
-```sh
-conda activate <your_env>
-mamba install -c conda-forge -c bioconda -n <your_snakemake_env> snakemake
-```
-In accordance with the Snakemake recommendations, we suggest to save your sample data 
-in `resources` folder. All outputs will be saved in `results`.
-
-Additional dependencies necessary are Java and GCC.
-
-The Peptonizer2000 is tested for Linux OS. <br>
-
-All necessary binaries are autmatically installed using conda.
+* Make sure that Conda and Mamba are installed. If these are not yet present on your system, you can follow the instructions on their [README](https://github.com/conda-forge/miniforge).
+* Go to the "workflow" directory by executing `cd workflow` from the terminal.
+* Run `conda env create -f env.yml` (make sure to run this command from the workflow directory) in order to install all dependencies and create a new conda environment (which is named "peptonizer" by default).
+* Run `mamba install -c conda-forge -c bioconda -n peptonizer snakemake` to install snakemake which is required to run the whole workflow from start-to-finish.
+* Run `conda activate peptonizer` to switch the current Conda environment to the peptonizer environment you created earlier.
+* Start the peptonizer with the command `snakemake --use-conda --cores 1`. If you have sufficient CPU and memory power available to your system, you can increase the amount of cores in order to speed up the workflow.
 
 
 ### Configuration file
@@ -154,32 +134,31 @@ An example configuration file is provided in `config/config.yaml`. <br>
 Do not change the config file location.
 
 <details> 
-   <details > <summary> Peptonizer parameter </summary>
+   <details > <summary> Directory parameters </summary>
    <ul>
-      <li> DataDir:  Relative path to raw spectra </li>
-      <li> ResultsDir: Relative path to results </li>
-      <li> ResourcesDir: Relative path to resources </li> 
-      <li> ExperimentName: Name of subfolder in results </li>
-      <li>TaxaInPlot: # of inferred taxa that appear in the barplot that is created of the results csv</li>
-      <li>Alpha: Grid search increments for alpha </li>
-      <li>Beta: Grid search increments for beta </li>
-      <li>prior: grid search increments for prior </li>
+      <li>data_dir: relative path to output files </li>
+      <li>input_file: relative path to input .tsv </li> 
+      <li>log_dir: relative path to log directory</li>
    </ul>
    </details>
 
-   <details > <summary> Sample specific parameter </summary>
+   <details > <summary> Analysis specific parameter </summary>
    <ul>
-      <li> PeptidesAndScores: path to you .tsv file of input peptides</li>
-      <li> SampleName: wildcard for spectra file and folder name </li>
+      <li>taxa_in_graph: # of inferred taxa that appear in the barplot that is created of the results csv</li>
+      <li>taxa_in_plot: number of taxa reported in bar plot</li>
+      <li>alpha: grid search increments for alpha (list) </li>
+      <li>beta: grid search increments for beta (list) </li>
+      <li>prior: grid search increments for prior (list) </li>
+      <li>regularized: boolean. If True, the probability for the number of parents taxa of a peptide is regularized to be harmonically decreasing with the number of parents </li>
    </ul>
    </details>
 
    </details>
 
-   <details > <summary> UniPept parameter </summary>
+   <details > <summary> UniPept query parameters </summary>
    <ul>
-       <li>TaxaNumber: # of taxa </li>
-       <li>targetTaxa: Comma separated list of taxa compromised in the UniPept query. If querying all of Unipept, use '1'</li>
+       <li>taxon_rank: rank at which results will be reported </li>
+       <li>taxon_query: taxa comprised in the UniPept query. If querying all of Unipept, use 1 (list)</li>
    </ul> 
    </details>
 </details>
@@ -190,17 +169,19 @@ All Peptonizer2000 output files are saved into the results folder and include th
 
 Main results: <br>
 
-- Peptonizer_Results.csv: Table with values ID, score, type (contains all taxids under 'ID' and all probabilities under '
-  score' tosterior probabilities of n (default: 15) highest scoring taxa <br>
+- peptonizer_results.csv: table with values ID, score, type (contains all taxids under 'ID' and all probabilities under 'score' <br>
+- peptonizer_results.png: bar plot of the peptonizer results showing the scores for the #'taxa_in_plot' (see config parameters) highest scoring taxa
   <br>
 
-Additional (intermediate): <br>
-- Intermediate results folder sorted by their prior value for all possible grid search parameter combinations
-- TaxaWeights.csv: csv file of all taxids that had at least one protein map to them and their weight 
-- PepGM_graph.graphml: graphml file of the graphical model (without convolution tree factors). Useful to visualize the graph structure and peptide-taxon connections <br>
-- paramcheck.png: barplot of the metric used to determine the graphical model parameters for n (default: 15) best performing parameter combinations <br>
-- additional .csv files resulting from the clustering of taxa by peptidome
-- log files for bug fixing
+Additional files: <br>
+- Intermediate results folders sorted by their prior value for all possible grid search parameter combinations
+- taxa_weights_dataframe.csv: csv file of all taxids that had at least one peptide map to them and their weight 
+- pepgm_graph.graphml: graphml file of the graphical model (without convolution tree factors). Useful to visualize the graph structure and peptide-taxon connections <br>
+- sequence_scores_dataframe.csv: dataframe with petides, taxa and scores used to create the graph <br>
+- best_parameter.csv: file with best parameter <br>
+- unipept_responses.json: response of unipept queries <br>
+- clustered_taxa_weights_datatframe: additional .csv file resulting from the clustering of taxa by peptidome used for rbo<br>
+
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -208,34 +189,22 @@ Additional (intermediate): <br>
 ## Testing the Peptonizer
 <!-- Testing -->
 
-To test the Peptonizer2000 and see if it is set up correctly on your machine, we provide a test file under resources/test_files. This should be dowloaded automatically if you follow the installation instructions above. The test file is a .tsv resulting from the sample S03 of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) searched against a sample specific database using X!Tandem and MS2Rescore. The original file are available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). 
+To test the Peptonizer2000 and see if it is set up correctly on your machine, we provide a test file under resources/test_files. This should be dowloaded automatically if you follow the installation instructions above. There are several test files from different metaproteomic samples. These are: <br>
+- the samples S03, S05 and S11 of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) searched against a sample specific database using X!Tandem and MS2Rescore. The original files are available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). 
+- the sample U1 of uneven communities from a [metaproteomic benchmark study by Kleiner](https://www.nature.com/articles/s41467-017-01544-x) searched against a sample specific database. The original files are available through [PRIDE under PXD006118](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)
+- the sample F07, a fecal sample, of the [CAMPI study](https://www.nature.com/articles/s41467-021-27542-8) searched against the integrated gene catalog for the human gut using X!Tandem and MS2Rescore. The original files are available through [PRIDE under PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217/). 
 
 To execute a test run of the Peptonizer2000 using the provided files: 
  
  1. Follow the installation instructions above
- 2. In you terminal, go to the folder resources/test_files
- 3. execute the following code to move config file to the right directory
- ```sh
- cp ./config.yaml ../../config/
- ```
- 4. You need to make some alterations to the provided example config file.
-    - input the path to the S03 .tsv file . It should be something like 'path_to_workflow_directory/resources/SampleData/S03_test.tsv'
-
-
-You should now me all set up to run the Peptonizer2000 on the test files. In your terminal, run
-```sh
-snakemake --use-conda --cores <n>
-````
-<n> is the number of cores available on your machine to run this workflow. Make sure your mamba environment, to which you downloaded snakemake, is active.
-
-
-
+ 2. In the config file, make sure to point to the test sample you want to use. By default, this is S03
+ 3. Start to peptonize with the command `snakemake --use-conda --cores 1`. If you have sufficient CPU and memory power available to your system, you can increase the amount of cores in order to speed up the workflow.
 
 
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE.txt` for more information.
+Distributed under the Apache 2.0 License. See `LICENSE.txt` for more information.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
