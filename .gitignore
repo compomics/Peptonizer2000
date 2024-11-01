@@ -34,3 +34,65 @@ workflow/Sars_strains.snakefile
 config/my_config.yaml
 
 taxdump.tar.gz
+data/
+old_data/
+logs/
+benchmarks/
+initial_benchmarks/
+
+.DS_Store
+
+.idea/
+*.iml
+
+# dotenv
+.env
+
+.snakemake/
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.tar.gz
