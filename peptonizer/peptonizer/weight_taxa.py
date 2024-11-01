@@ -108,9 +108,9 @@ def perform_taxa_weighing(
     """
     print("Parsing Unipept responses from disk...")
 
-    unipept_responses = weighted_random_sample(unipept_responses, 15000)
+    # unipept_responses = weighted_random_sample(unipept_responses, 15000)
 
-    print(f"Using {len(unipept_responses)} sequences as input...")
+    # print(f"Using {len(unipept_responses)} sequences as input...")
 
     # Convert a JSON object into a Pandas DataFrame
     # record_path Parameter is used to specify the path to the nested list or dictionary that you want to normalize
