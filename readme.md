@@ -89,7 +89,7 @@ The Peptonizer2000 workflow is comprised of the following steps:
 
 
 <div align="center">
-    <img src="images/workflow.png" alt="workflow scheme" width="500">
+    <img src="https://raw.githubusercontent.com/compomics/Peptonizer2000/refs/heads/master/peptonizer_workflow.png" alt="workflow scheme" width="500">
 </div>
 
 <br>
