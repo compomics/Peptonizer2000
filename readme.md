@@ -215,6 +215,10 @@ Distributed under the Apache 2.0 License. See `LICENSE.txt` for more information
 Tanja Holstein - [@HolsteinTanja](https://twitter.com/HolsteinTanja) - tanja.holstein@ugent.be <br>
 Pieter Verschaffelt - pieter.verschaffelt@ugent.be
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/compomics/Peptonizer2000/refs/heads/master/peptonizer_developers.jpeg" alt="Logo"  height="300">
+</div>
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
