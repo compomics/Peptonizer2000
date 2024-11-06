@@ -120,9 +120,9 @@ In order to run the Peptonizer2000 on your own system, you should install Conda,
 Follow the installation instructions step-by-step for an explanation of what you should do.
 
 * Make sure that Conda and Mamba are installed. If these are not yet present on your system, you can follow the instructions on their [README](https://github.com/conda-forge/miniforge).
-* Go to the "workflow" directory by executing `cd workflow` from the terminal.
+* Go to the "workflow" directory by executing `cd snakemake/workflow` from the terminal.
 * Run `conda env create -f env.yml` (make sure to run this command from the workflow directory) in order to install all dependencies and create a new conda environment (which is named "peptonizer" by default).
-* Run `mamba install -c conda-forge -c bioconda -n peptonizer snakemake=8.20.6` to install snakemake which is required to run the whole workflow from start-to-finish.
+* Run `mamba install -c conda-forge -c bioconda -n peptonizer snakemake` to install snakemake which is required to run the whole workflow from start-to-finish.
 * Run `conda activate peptonizer` to switch the current Conda environment to the peptonizer environment you created earlier.
 * Start the peptonizer with the command `snakemake --use-conda --cores 1`. If you have sufficient CPU and memory power available to your system, you can increase the amount of cores in order to speed up the workflow.
 
