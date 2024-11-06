@@ -13,7 +13,6 @@ def plot_peptonizer_results(input_file: str, output_file: str, number_of_taxa: i
     assert input_file.lower().endswith(".csv"), "Input file should be a CSV."
     assert output_file.lower().endswith(".png"), "Output file should be a PNG."
 
-
     # read csv using pandas
     ids = pd.read_csv(input_file, names=["ID", "score", "type"])
     tax_ids = ids.loc[ids["type"] == "taxon"]
@@ -34,32 +33,21 @@ def plot_peptonizer_results(input_file: str, output_file: str, number_of_taxa: i
     bars = ax.barh(
         range(len(taxa_names[-number_of_taxa:])),
         scores[-number_of_taxa:],
-        color="royalblue",
+        color="#283593",
     )
 
     ax.set_yticks(range(len(taxa_names[-number_of_taxa:])))
-    ax.set_yticklabels(taxa_names[-number_of_taxa:], fontsize=25)
+    ax.set_yticklabels(taxa_names[-number_of_taxa:], fontsize=24, color="#283593", fontweight="bold")
+    ax.tick_params(axis='y', which='major', pad=15)
     plt.xlim((0, 1))
-    plt.xlabel("Posterior probability", fontsize=35)
+    plt.xlabel("Probability score", fontsize=35, fontweight="bold")
     ax.xaxis.set_ticks(np.arange(0, 1.2, 0.2))
     ax.xaxis.set_ticklabels([0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=35)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_visible(False)
-
-    bar_color = bars[0].get_facecolor()
-
-    for bar in bars:
-        ax.text(
-            bar.get_width() + 0.05,
-            bar.get_y() + bar.get_height() / 5,
-            round(bar.get_width(), 3),
-            fontsize=35,
-            horizontalalignment="center",
-            color=bar_color,
-            weight="bold",
-        )
+    ax.bar_label(bars, fmt='{:,.3f}', fontsize=24, fontweight='bold', color='black', padding=20)
 
     fig.tight_layout()
 
