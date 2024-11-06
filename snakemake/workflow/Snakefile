@@ -18,7 +18,9 @@ project_root = Path(path.join(Path(workflow.basedir).parent.parent)).as_posix()
 
 rule All:
     input:
-        path.join(data_dir, 'best_parameters.csv')
+        path.join(data_dir, 'best_parameters.csv'),
+        path.join(data_dir, 'peptonizer_result.csv'),
+        path.join(data_dir, 'peptonizer_result.png')
 
 rule GetTaxonomyFromUnipept:
     input:
@@ -64,7 +66,7 @@ rule CreatePepGMGraph:
     input:
         path.join(data_dir, 'sequence_scores_dataframe.csv')
     output:
-        path.join(data_dir, 'pepgm_communities_graph.graphml')
+        path.join(data_dir, 'pepgm_full_graph.graphml')
     params:
         run_command=select_command(config['profile'], path.join(benchmark_dir, "create_pepgm_graph.prof"))
     benchmark:
@@ -78,7 +80,7 @@ rule CreatePepGMGraph:
 
 rule RunPepGM:
     input:
-        path.join(data_dir, 'pepgm_communities_graph.graphml')
+        path.join(data_dir, 'pepgm_full_graph.graphml')
     output:
         path.join(data_dir, 'prior{prior}', 'pepgm_results_a{alpha}_b{beta}_p{prior}.csv')
     params:
@@ -108,22 +110,6 @@ rule GenerateBarPlot:
         {params.run_command} scripts/bar_plot_results.py --results-file {input[0]} --out {output[0]} --number-of-results {params.taxa_in_plot}
         """
 
-rule CreateFullGraph:
-    input:
-        path.join(data_dir, 'sequence_scores_dataframe.csv')
-    output:
-        path.join(data_dir, 'pepgm_full_graph.graphml')
-    params:
-        run_command=select_command(config['profile'], path.join(benchmark_dir, "create_full_pepgm_graph.prof"))
-    benchmark:
-        path.join(benchmark_dir, "create_pepgm_graph.tsv")
-    conda: "env.yml"
-    shell:
-        """
-        export PYTHONPATH={project_root}:${{PYTHONPATH:-}}
-        {params.run_command} scripts/create_pepgm_graph.py --sequence-scores-dataframe-file {input[0]} --out {output[0]}
-        """
-
 rule PerformTaxaClustering:
     input:
         path.join(data_dir, 'pepgm_full_graph.graphml'),
@@ -147,7 +133,9 @@ rule FindBestParameters:
         path.join(data_dir, 'clustered_taxa_weights_dataframe.csv'),
         expand(path.join(data_dir, 'prior{prior}', 'pepgm_results_a{alpha}_b{beta}_p{prior}.png'), alpha=config['alpha'], beta=config['beta'], prior=config['prior'])
     output:
-        path.join(data_dir, 'best_parameters.csv')
+        path.join(data_dir, 'best_parameters.csv'),
+        path.join(data_dir, 'peptonizer_result.csv'),
+        path.join(data_dir, 'peptonizer_result.png')
     params:
         results_dir=data_dir,
         run_command=select_command(config['profile'], path.join(benchmark_dir, 'prior{prior}', "find_best_parameters.prof"))
@@ -157,5 +145,5 @@ rule FindBestParameters:
     shell:
         """
         export PYTHONPATH={project_root}:${{PYTHONPATH:-}}
-        {params.run_command} scripts/find_best_parameters.py --taxa-weights-dataframe-file {input[0]} --results-folder {params.results_dir} --out {output[0]}
+        {params.run_command} scripts/find_best_parameters.py --taxa-weights-dataframe-file {input[0]} --results-folder {params.results_dir} --best-params-file {output[0]} --best-params-csv {output[1]} --best-params-png {output[2]}
         """
