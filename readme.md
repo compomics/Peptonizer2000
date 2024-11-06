@@ -151,6 +151,7 @@ Do not change the config file location.
       <li>prior: grid search increments for prior (list) </li>
       <li>regularized: boolean. If True, the probability for the number of parents taxa of a peptide is regularized to be inversely proportional to the number of parents </li>
    </ul>
+   </details>
    <details > <summary> UniPept query parameters </summary>
    <ul>
        <li>taxon_rank: rank at which results will be reported </li>
