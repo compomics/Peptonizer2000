@@ -5,7 +5,7 @@ import re
 import shutil
 from os import path
 
-from peptonizer.peptonizer import find_best_parameters, ParameterSet
+from peptonizer.peptonizer import find_best_parameters, ParameterSet, clean_csv
 
 parser = argparse.ArgumentParser()
 
@@ -90,11 +90,15 @@ with open(args.best_params_file, "w") as f:
     f.write("alpha,beta,prior\n")
     f.write(f"{best_param_set.alpha},{best_param_set.beta},{best_param_set.prior}\n")
 
-# Copy the CSV and the plots with the best parameters to the final output directory
-shutil.copy(
-    path.join(args.results_folder, f"prior{best_param_set.prior}", f"pepgm_results_a{best_param_set.alpha}_b{best_param_set.beta}_p{best_param_set.prior}.csv"),
-    args.best_params_csv
-)
+# Clean the CSV for the best parameters and write it to the final output directory
+best_csv_path = path.join(args.results_folder, f"prior{best_param_set.prior}", f"pepgm_results_a{best_param_set.alpha}_b{best_param_set.beta}_p{best_param_set.prior}.csv")
+with open(best_csv_path, "r") as in_file:
+    clean_taxa_csv = clean_csv(in_file.read())
+
+    with open(args.best_params_csv, "w") as out_file:
+        out_file.write(clean_taxa_csv)
+
+# Copy the plots with the best parameters to the final output directory
 shutil.copy(
     path.join(args.results_folder, f"prior{best_param_set.prior}", f"pepgm_results_a{best_param_set.alpha}_b{best_param_set.beta}_p{best_param_set.prior}.png"),
     args.best_params_png
