@@ -6,7 +6,6 @@ import GeneratePepGMGraphWorker from './workers/GeneratePepGMGraphWorker.ts?work
  */
 class GraphGenerationWorkerPool {
     static worker = new GeneratePepGMGraphWorker();
-    // static worker = new Worker(new URL('./workers/GeneratePepGMGraphWorker.ts', import.meta.url), { type: 'module' });
     static callbacks = new Map();
     static currentId = 0;
 
@@ -26,20 +25,24 @@ class GraphGenerationWorkerPool {
      * Generate the PepGM factor graph for a given list of PSM's. The computation of this factor graph will be queued
      * until the worker is available and the results will be returned as soon as they are available.
      *
-     * @param psms A string containing the contents of a PSM-file that have already been parsed before.
+     * @param peptidesScores Mapping between peptide sequences that need to be considered by the peptonizer and a
+     * scoring value assigned to each sequence by prior steps (e.g. search engines).
+     * @param peptidesCounts Mapping between peptide sequences and their occurrences in the input file.
      * @returns String representation of a GraphML version of the input PSMS.
      */
-    static generatePepGmGraph(psms: string): Promise<string> {
-        console.log("Started generate graph call...");
+    static generatePepGmGraph(
+        peptidesScores: Map<string, number>,
+        peptidesCounts: Map<string, number>
+    ): Promise<string> {
         // the id could be generated more carefully
         this.currentId = (this.currentId + 1) % Number.MAX_SAFE_INTEGER;
         return new Promise((onSuccess) => {
             // This promise will be resolved when the worker returns the results to the main thread asynchronously.
             this.callbacks.set(this.currentId, onSuccess);
-            console.log("Sending data to generate graph worker...");
             // Start a worker to generate the graph.
             this.worker.postMessage({
-                psms,
+                peptidesScores,
+                peptidesCounts,
                 id: this.currentId,
             });
         });

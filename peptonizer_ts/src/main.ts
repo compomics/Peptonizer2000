@@ -4,6 +4,7 @@ import peptonizerLogo from "./peptonizer.jpg"
 import { GridSearchProgressListener } from "./GridSearchProgressListener.ts";
 import { Peptonizer } from "./Peptonizer.ts";
 import {BeliefPropagationParameters} from "./GridSearchWorkerPool.ts";
+import {TSVParser} from "./TSVParser.ts";
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
   <div id="app">
@@ -16,8 +17,8 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
       
       <div id="inputs">
         <div style="margin: 16px;">
-            <span>1. Upload a PSM file</span>
-            <label for="file-input" class="file-label">⇪ Choose PSM File</label>
+            <span>1. Upload a TSV file</span>
+            <label for="file-input" class="file-label">⇪ Choose TSV File</label>
             <input type="file" id="file-input" accept=".tsv,.txt" />
             <div id="file-input-label"></div>
         </div>
@@ -151,15 +152,17 @@ const startToPeptonize = async function() {
 
     const peptonizer = new Peptonizer();
 
+    const [peptidesScores, peptidesCounts] = TSVParser.parse(fileContents);
+
     const peptonizerResult = await peptonizer.peptonize(
-        fileContents,
+        peptidesScores,
+        peptidesCounts,
         alphas,
         betas,
         priors,
         new ProgressListener(document.getElementById("progress-view")!, 1)
     );
 
-    console.log(peptonizerResult);
     const entries = Object.entries(peptonizerResult[0]).map(([key, value]) => [key, parseFloat(value.toFixed(2))]);
     // @ts-ignore
     const sortedEntries = entries.sort((a, b) => b[1] - a[1]);

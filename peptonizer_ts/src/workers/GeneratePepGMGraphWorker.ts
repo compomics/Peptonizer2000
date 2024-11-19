@@ -9,7 +9,8 @@ interface DedicatedWorkerGlobalScope {
 }
 
 interface EventData {
-    psms: any;
+    peptidesScores: Map<string, number>;
+    peptidesCounts: Map<string, number>;
     id: string;
 }
 
@@ -35,6 +36,8 @@ async function loadPyodideAndPackages(): Promise<void> {
         from pathlib import Path
         
         import micropip
+        
+        await micropip.install('rbo')
 
         # Decode base64 string to binary and write to a temporary file
         wheel_data = "${peptonizerWhlBase64}"
@@ -55,17 +58,17 @@ async function loadPyodideAndPackages(): Promise<void> {
 let pyodideReadyPromise: Promise<void> = loadPyodideAndPackages();
 
 self.onmessage = async (event: MessageEvent<EventData>): Promise<void> => {
-    console.log("Received request in generate graph worker...");
 
     // Make sure loading is done
     await pyodideReadyPromise;
 
     // Destructure the data from the event
-    const { psms, id } = event.data;
+    const { peptidesScores, peptidesCounts, id } = event.data;
 
     try {
         // Set inputs for the Python code
-        self.pyodide.globals.set('input', psms);
+        self.pyodide.globals.set('peptides_scores', peptidesScores);
+        self.pyodide.globals.set('peptides_counts', peptidesCounts);
 
         // Fetch the Python code and execute it with Pyodide
         const results = await self.pyodide.runPythonAsync(pythonCode);

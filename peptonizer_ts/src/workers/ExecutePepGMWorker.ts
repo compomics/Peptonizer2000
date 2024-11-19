@@ -25,7 +25,7 @@ async function loadPyodideAndPackages(): Promise<void> {
     // Load all packages into the Pyodide runtime environment that are required by the Peptonizer
     await self.pyodide.loadPackage([
         'micropip',
-        'requests',
+        'requests'
     ]);
 
     // Use the imported .whl file URL directly with micropip
@@ -34,6 +34,8 @@ async function loadPyodideAndPackages(): Promise<void> {
         from pathlib import Path
         
         import micropip
+        
+        await micropip.install('rbo')
 
         # Decode base64 string to binary and write to a temporary file
         wheel_data = "${peptonizerWhlBase64}"
@@ -55,8 +57,6 @@ async function loadPyodideAndPackages(): Promise<void> {
 let pyodideReadyPromise: Promise<void> = loadPyodideAndPackages();
 
 self.onmessage = async (event: MessageEvent<EventData>): Promise<void> => {
-    console.log("Received message in execute pepgm worker...");
-
     // Ensure that loading is complete
     await pyodideReadyPromise;
 
@@ -81,5 +81,3 @@ self.onmessage = async (event: MessageEvent<EventData>): Promise<void> => {
         self.postMessage(JSON.stringify({ type: "error", error: error.message, id }));
     }
 };
-
-console.log(self.onmessage);
