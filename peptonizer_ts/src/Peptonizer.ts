@@ -1,6 +1,7 @@
 import {GridSearchProgressListener} from "./GridSearchProgressListener.ts";
-import {GraphGenerationWorkerPool} from "./GraphGenerationWorkerPool.ts";
-import {BeliefPropagationResult, GridSearchWorkerPool} from "./GridSearchWorkerPool.ts";
+import {WorkerPool} from "./workers/WorkerPool.ts";
+
+type PeptonizerResult = Map<string, number>;
 
 class Peptonizer {
     /**
@@ -27,27 +28,37 @@ class Peptonizer {
         betas: number[],
         priors: number[],
         progressListener: GridSearchProgressListener
-    ): Promise<BeliefPropagationResult[]> {
-        // First, we've got to generate the PepGM factor graph itself.
-        const generatedGraph = await GraphGenerationWorkerPool.generatePepGmGraph(peptidesScores, peptidesCounts);
+    ): Promise<PeptonizerResult[]> {
+        const workerPool = new WorkerPool();
 
-        // // Check if generating the graph worked properly
-        // if (generatedGraph.error) {
-        //     return {
-        //         error: generatedGraph.error
-        //     }
-        // }
+        const peptonizerResults: PeptonizerResult[] = [];
 
-        // If we reach this point, the graphs have been generated properly, and we can start the belief propagation
-        // algorithm for all possible parameter combinations.
-        return GridSearchWorkerPool.performGridSearch(
-            generatedGraph,
-            alphas,
-            betas,
-            priors,
-            progressListener
-        );
+        try {
+            const taxonWeightsCsv = await workerPool.performTaxaWeighing(peptidesScores, peptidesCounts);
+            const generatedGraph = await workerPool.generateGraph(taxonWeightsCsv);
+
+            for (const alpha of alphas) {
+                for (const beta of betas) {
+                    for (const prior of priors) {
+                        const result = await workerPool.executePepgm(
+                            generatedGraph,
+                            alpha,
+                            beta,
+                            prior,
+                            progressListener
+                        );
+
+                        peptonizerResults.push(result);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        }
+
+        return peptonizerResults
     }
 }
 
 export { Peptonizer };
+export type { PeptonizerResult }

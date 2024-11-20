@@ -24,7 +24,7 @@ def compute_detected_peptidome_similarity(peptidome_dict):
             peptides2 = set(peptidome_dict[taxon2])
             shared = len(peptides1.intersection(peptides2))
             try:
-                sim = shared / ( len(peptides2))
+                sim = shared / (len(peptides2))
             except:
                 sim = 0
 

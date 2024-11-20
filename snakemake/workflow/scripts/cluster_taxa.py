@@ -19,7 +19,7 @@ parser.add_argument(
 parser.add_argument(
     '--similarity-threshold',
     type = float,
-    help = 'Threshold for the petidome sinilarity at which two taxa should belong to the same cluster.'
+    help = 'Threshold for the peptidome similarity at which two taxa should belong to the same cluster.'
 )
 parser.add_argument(
     '--out',

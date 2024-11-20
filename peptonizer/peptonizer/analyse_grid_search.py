@@ -15,24 +15,25 @@ class ParameterSet(NamedTuple):
     prior: float
 
 
-def compute_goodness(df: pd.DataFrame, taxid_weights: pd.DataFrame):
-    tax_ids = df.loc[df['type'] == 'taxon'].copy()
-    tax_ids.loc[:, 'score'] = pd.to_numeric(tax_ids['score'], downcast = 'float')
-    tax_ids.sort_values('score', ascending = False, inplace = True)
-    tax_ids.dropna(inplace = True)
+def compute_goodness(taxa_scores: dict, taxid_weights: pd.DataFrame):
+    # Sort the taxa_scores dictionary by score in descending order
+    sorted_tax_ids = sorted(taxa_scores.items(), key=lambda item: item[1], reverse=True)
 
-    # Compute entropy of the posterior probability distribution.
-    computed_entropy = entropy(tax_ids['score'].tolist())
+    # Extract the sorted tax IDs and their corresponding scores
+    sorted_ids = [tax_id for tax_id, score in sorted_tax_ids]
+    sorted_scores = [score for tax_id, score in sorted_tax_ids]
 
-    # Compute the rank based similarity between the weight sorted taxa and the score sorted ID results.
+    # Compute entropy of the posterior probability distribution
+    computed_entropy = entropy(sorted_scores)
 
+    # Compute the rank-based similarity between weight-sorted taxa and score-sorted ID results
     return rbo.RankingSimilarity(
         taxid_weights['HigherTaxa'].values,
-        [int(i) for i in tax_ids['ID'].values]
+        [int(tax_id) for tax_id in sorted_ids]
     ).rbo() * (1 / computed_entropy ** 2)
 
 
-def find_best_parameters(results: List[Tuple[pd.DataFrame, ParameterSet]], taxid_weights: pd.DataFrame):
+def find_best_parameters(results: List[Tuple[dict, ParameterSet]], taxid_weights: pd.DataFrame):
     """
     Given the dataframes that have been run through the Belief Propagation Algorithm before and the matching parameter
     sets, compute a goodness metric for each of these dataframes and returns the ParameterSet that resulted in the
@@ -47,8 +48,8 @@ def find_best_parameters(results: List[Tuple[pd.DataFrame, ParameterSet]], taxid
     params = []
     goodness_list = []
 
-    for df, param_set in results:
-        goodness_list.append(compute_goodness(df, taxid_weights))
+    for taxa_scores, param_set in results:
+        goodness_list.append(compute_goodness(taxa_scores, taxid_weights))
         params.append(param_set)
 
     metrics_params = zip(goodness_list, params)

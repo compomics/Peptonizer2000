@@ -5,7 +5,7 @@ import re
 import shutil
 from os import path
 
-from peptonizer.peptonizer import find_best_parameters, ParameterSet, clean_csv
+from peptonizer.peptonizer import find_best_parameters, ParameterSet, clean_csv, parse_taxon_scores
 
 parser = argparse.ArgumentParser()
 
@@ -78,10 +78,11 @@ weights_df = pd.read_csv(
 # best parameter set.
 results_and_params = []
 for result_file in find_csv_files(args.results_folder):
-    df = pd.read_csv(result_file, names = ['ID', 'score', 'type'])
     alpha, beta, prior = extract_parameters(result_file)
-    parameter_set = ParameterSet(alpha, beta, prior)
-    results_and_params.append((df, parameter_set))
+    with open(result_file, "r") as f:
+        taxon_scores = parse_taxon_scores(f.read())
+        parameter_set = ParameterSet(alpha, beta, prior)
+        results_and_params.append((taxon_scores, parameter_set))
 
 best_param_set = find_best_parameters(results_and_params, weights_df)
 

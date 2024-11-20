@@ -21,8 +21,7 @@ taxa_weights_df, _ = peptonizer.perform_taxa_weighing(
     "species"
 )
 
-# Finally use the computed weights to generate the graph
-pepgm_graph = peptonizer.generate_pepgm_graph(taxa_weights_df)
+print("Dumping taxa weights to csv")
 
-# Return an XML representation of the generated peptonizer graph
-pepgm_graph.to_graph_ml()
+# Return a CSV-representation of the taxa_weights dataframe
+taxa_weights_df.to_csv()
