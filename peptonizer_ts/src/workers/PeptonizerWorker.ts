@@ -1,10 +1,10 @@
 import {loadPyodide, PyodideInterface} from 'pyodide';
 import peptonizerWhlBase64 from "./lib/peptonizer-0.1-py3-none-any.base64.whl?raw";
 import {
-    ClusterTaxaTaskDataResult,
+    ClusterTaxaTaskData,
+    ClusterTaxaTaskDataResult, ComputeGoodnessDataResult, ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
     ExecutePepgmTaskDataResult,
-    FindBestParametersTaskDataResult,
     GenerateGraphTaskData,
     GenerateGraphTaskDataResult,
     InputEventData,
@@ -18,6 +18,8 @@ import {
 import performTaxaWeighingPythonCode from "./lib/perform_taxa_weighing.py?raw";
 import generateGraphPythonCode from "./lib/generate_pepgm_graph.py?raw";
 import executePepgmPythonCode from "./lib/execute_pepgm.py?raw";
+import clusterTaxaPythonCode from "./lib/cluster_taxa.py?raw";
+import computeGoodnessPythonCode from "./lib/compute_goodness.py?raw";
 
 interface DedicatedWorkerGlobalScope {
     pyodide: PyodideInterface;
@@ -72,12 +74,11 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
 
     // Fetch the Python code and execute it with Pyodide
-    const csvString = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
-
-    console.log("Finished taxa weighing")
+    const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
 
     return {
-        taxaWeightsCsv: csvString
+        sequenceScoresCsv,
+        taxaWeightsCsv
     };
 }
 
@@ -100,20 +101,33 @@ async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promi
 
     const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);
 
-    console.log(taxonScoresJson);
-
     return {
         taxonScoresJson
     };
 }
 
-// async function clusterTaxa() {
-//
-// }
-//
-// async function findBestParameters() {
-//
-// }
+async function clusterTaxa(data: ClusterTaxaTaskData): Promise<ClusterTaxaTaskDataResult> {
+    self.pyodide.globals.set('graph', data.graphXml);
+    self.pyodide.globals.set('taxa_weights_csv', data.taxaWeightsCsv);
+    self.pyodide.globals.set('similarity_threshold', data.similarityThreshold);
+
+    const clusteredTaxaWeightsCsv = await self.pyodide.runPythonAsync(clusterTaxaPythonCode);
+
+    return {
+        clusteredTaxaWeightsCsv
+    };
+}
+
+async function computeGoodness(data: ComputeGoodnessTaskData): Promise<ComputeGoodnessDataResult> {
+    self.pyodide.globals.set('clustered_taxa_weights_csv', data.clusteredTaxaWeightsCsv);
+    self.pyodide.globals.set('peptonizer_results', data.peptonizerResults);
+
+    const goodness = await self.pyodide.runPythonAsync(computeGoodnessPythonCode);
+
+    return {
+        goodness
+    }
+}
 
 self.submitPepgmProgress = function(
     progressType: "graph" | "max_residual" | "iteration",
@@ -145,7 +159,7 @@ self.onmessage = async (event: MessageEvent<InputEventData>): Promise<void> => {
         // Destructure the data from the event
         const eventData = event.data;
 
-        let output: PerformTaxaWeighingTaskResult | GenerateGraphTaskDataResult | ExecutePepgmTaskDataResult | ClusterTaxaTaskDataResult | FindBestParametersTaskDataResult | undefined;
+        let output: PerformTaxaWeighingTaskResult | GenerateGraphTaskDataResult | ExecutePepgmTaskDataResult | ClusterTaxaTaskDataResult | ComputeGoodnessDataResult | undefined;
 
         if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
             output = await performTaxaWeighing(eventData.input);
@@ -154,9 +168,9 @@ self.onmessage = async (event: MessageEvent<InputEventData>): Promise<void> => {
         } else if (eventData.task === WorkerTask.EXECUTE_PEPGM) {
             output = await executePepgm(eventData.input, eventData.workerId);
         } else if (eventData.task === WorkerTask.CLUSTER_TAXA) {
-
-        } else if (eventData.task === WorkerTask.FIND_BEST_PARAMETERS) {
-
+            output = await clusterTaxa(eventData.input);
+        } else if (eventData.task === WorkerTask.COMPUTE_GOODNESS) {
+            output = await computeGoodness(eventData.input);
         } else {
             throw new Error("Unknown task type passed to worker!");
         }

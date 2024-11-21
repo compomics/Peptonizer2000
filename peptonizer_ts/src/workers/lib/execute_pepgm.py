@@ -1,9 +1,8 @@
 import json
-
 import peptonizer
-
 # Provided by Pyodide, required to send status updates from this thread to the main thread in JavaScript.
 import js
+
 
 class JSZeroLookaheadProgressListener(peptonizer.ZeroLookaheadProgressListener):
     def __init__(self, execution_id: int):
@@ -48,4 +47,4 @@ pepgm_results = peptonizer.run_belief_propagation(
 )
 
 # Now convert the results from PepGM into a list of taxon IDs and the corresponding score values.
-json.dumps(peptonizer.extract_taxon_scores(pepgm_results))
+json.dumps(peptonizer.parse_taxon_scores(pepgm_results))

@@ -40,7 +40,7 @@ def find_best_parameters(results: List[Tuple[dict, ParameterSet]], taxid_weights
     highest goodness value.
 
     :param results: A list of tuples each holding two things:
-        1. A dataframe containing taxa and their associated scores after running the belief propagation algorithm
+        1. A dict containing taxa and their associated scores after running the belief propagation algorithm
         2. The parameter values that where used during the belief propagation algorithm for this set of taxa
     :param taxid_weights: A dataframe containing taxa and their corresponding 'scaled weights', as computed by the]
     weight_taxa step.

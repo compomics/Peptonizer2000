@@ -4,7 +4,7 @@ enum WorkerTask {
     GENERATE_GRAPH,
     EXECUTE_PEPGM,
     CLUSTER_TAXA,
-    FIND_BEST_PARAMETERS
+    COMPUTE_GOODNESS
 }
 
 interface PerformTaxaWeighingTaskData {
@@ -24,11 +24,14 @@ interface ExecutePepgmTaskData {
 }
 
 interface ClusterTaxaTaskData {
-
+    graphXml: string,
+    taxaWeightsCsv: string,
+    similarityThreshold: number
 }
 
-interface FindBestParametersTaskData {
-
+interface ComputeGoodnessTaskData {
+    clusteredTaxaWeightsCsv: string,
+    peptonizerResults: Map<string, number>
 }
 
 type SpecificInputEventData =
@@ -36,13 +39,14 @@ type SpecificInputEventData =
     { task: WorkerTask.GENERATE_GRAPH, input: GenerateGraphTaskData } |
     { task: WorkerTask.EXECUTE_PEPGM, input: ExecutePepgmTaskData } |
     { task: WorkerTask.CLUSTER_TAXA, input: ClusterTaxaTaskData } |
-    { task: WorkerTask.FIND_BEST_PARAMETERS, input: FindBestParametersTaskData };
+    { task: WorkerTask.COMPUTE_GOODNESS, input: ComputeGoodnessTaskData };
 
 type CommonInputEventData = { workerId: number };
 
 type InputEventData = SpecificInputEventData & CommonInputEventData;
 
 interface PerformTaxaWeighingTaskResult {
+    sequenceScoresCsv: string,
     taxaWeightsCsv: string
 }
 
@@ -61,11 +65,11 @@ interface PepgmProgressUpdate {
 }
 
 interface ClusterTaxaTaskDataResult {
-
+    clusteredTaxaWeightsCsv: string
 }
 
-interface FindBestParametersTaskDataResult {
-
+interface ComputeGoodnessDataResult {
+    goodness: number
 }
 
 enum ResultType {
@@ -79,7 +83,7 @@ type SpecificOutputEventData = { resultType: ResultType.SUCCESSFUL } & (
     { task: WorkerTask.GENERATE_GRAPH, output: GenerateGraphTaskDataResult } |
     { task: WorkerTask.EXECUTE_PEPGM, output: ExecutePepgmTaskDataResult } |
     { task: WorkerTask.CLUSTER_TAXA, output: ClusterTaxaTaskDataResult } |
-    { task: WorkerTask.FIND_BEST_PARAMETERS, output: FindBestParametersTaskDataResult });
+    { task: WorkerTask.COMPUTE_GOODNESS, output: ComputeGoodnessDataResult });
 
 type CommonOutputEventData = { workerId: number };
 
@@ -98,14 +102,14 @@ export type {
     GenerateGraphTaskData,
     ExecutePepgmTaskData,
     ClusterTaxaTaskData,
-    FindBestParametersTaskData,
+    ComputeGoodnessTaskData,
     SpecificInputEventData,
     InputEventData,
     PerformTaxaWeighingTaskResult,
     GenerateGraphTaskDataResult,
     ExecutePepgmTaskDataResult,
     ClusterTaxaTaskDataResult,
-    FindBestParametersTaskDataResult,
+    ComputeGoodnessDataResult,
     OutputEventData,
     PepgmProgressUpdate,
     ProgressOutputEvent

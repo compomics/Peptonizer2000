@@ -6,10 +6,6 @@ import pandas as pd
 # The PSM input should be provided to the parser as a list of strings
 taxa_weights_csv = globals().get('taxa_weights_csv')
 
-print("Start taxa weighing")
-print(taxa_weights_csv)
-print(pd.read_csv(StringIO(taxa_weights_csv)))
-
 # Finally use the computed weights to generate the graph
 pepgm_graph = peptonizer.generate_pepgm_graph(pd.read_csv(StringIO(taxa_weights_csv)))
 

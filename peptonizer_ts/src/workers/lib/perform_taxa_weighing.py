@@ -13,7 +13,7 @@ unipept_responses = peptonizer.fetch_unipept_taxon_information(
 )
 
 # Infer the taxa weights for these peptide sequences
-taxa_weights_df, _ = peptonizer.perform_taxa_weighing(
+sequence_scores_df, taxa_weights_df = peptonizer.perform_taxa_weighing(
     unipept_responses,
     pep_scores,
     pep_counts,
@@ -21,7 +21,6 @@ taxa_weights_df, _ = peptonizer.perform_taxa_weighing(
     "species"
 )
 
-print("Dumping taxa weights to csv")
-
 # Return a CSV-representation of the taxa_weights dataframe
-taxa_weights_df.to_csv()
+output = [sequence_scores_df.to_csv(), taxa_weights_df.to_csv()]
+output

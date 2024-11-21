@@ -19,17 +19,17 @@ benchmark_dir: '../benchmarks'
 taxa_in_graph: 100
 
 # Increments of alpha parameter to use for the grid search
-alpha: [0.8, 0.9, 0.99]
-#alpha: [0.99]
+#alpha: [0.8, 0.9, 0.99]
+alpha: [0.99]
 
 # Range of parameter beta to use for the grid search
-beta: [0.6, 0.7, 0.8, 0.9]
-#beta: [0.9]
+#beta: [0.6, 0.7, 0.8, 0.9]
+beta: [0.9]
 
 
 # Range of prior parameter to use for the gird search
-prior: [0.3, 0.5]
-#prior: [0.5]
+#prior: [0.3, 0.5]
+prior: [0.5]
 
 regularized: True
 

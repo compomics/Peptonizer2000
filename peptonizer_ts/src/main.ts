@@ -146,9 +146,13 @@ const startToPeptonize = async function() {
     inputElement.hidden = true;
     loadingSpinner.hidden = false;
 
-    const alphas = [0.2, 0.5, 0.8];
-    const betas = [0.2, 0.5, 0.8];
-    const priors = [0.2, 0.5];
+    // const alphas = [0.8, 0.9, 0.99];
+    // const betas = [0.6, 0.7, 0.8, 0.9];
+    // const priors = [0.3, 0.5];
+
+    const alphas = [0.9];
+    const betas = [0.8, 0.9];
+    const priors = [0.5];
 
     const peptonizer = new Peptonizer();
 
@@ -160,17 +164,26 @@ const startToPeptonize = async function() {
         alphas,
         betas,
         priors,
-        new ProgressListener(document.getElementById("progress-view")!, 1)
+        new ProgressListener(document.getElementById("progress-view")!, 2)
     );
 
-    const entries = Object.entries(peptonizerResult[0]).map(([key, value]) => [key, parseFloat(value.toFixed(2))]);
+    console.log(peptonizerResult);
+
+    // Extract entries from the Map, format values, and sort them
+    const entries = Array.from(peptonizerResult.entries()).map(
+        ([key, value]) => [key, parseFloat(value.toFixed(2))]
+    );
     // @ts-ignore
     const sortedEntries = entries.sort((a, b) => b[1] - a[1]);
 
-
-    // Extract keys and values from peptonizerResult
+    // Extract keys and values from the sorted entries
     const labels = sortedEntries.map(entry => entry[0]); // Sorted keys
-    const values = sortedEntries.map(entry => entry[1]);
+    const values = sortedEntries.map(entry => entry[1]); // Sorted values
+
+    console.log("Labels:")
+    console.log(labels)
+    console.log("Values:")
+    console.log(values)
 
     // Render the chart with Highcharts
     // @ts-ignore

@@ -1,5 +1,6 @@
 import PeptonizerWorker from './PeptonizerWorker.ts?worker&inline';
 import {
+    ClusterTaxaTaskData, ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
     GenerateGraphTaskData,
     InputEventData,
@@ -63,7 +64,7 @@ class WorkerPool {
     public async performTaxaWeighing(
         peptidesScores: Map<string, number>,
         peptidesCounts: Map<string, number>
-    ): Promise<string> {
+    ): Promise<[string, string]> {
         const eventData: PerformTaxaWeighingTaskData = {
             peptidesScores,
             peptidesCounts
@@ -99,6 +100,32 @@ class WorkerPool {
         return await this.queue.push({ queueInput: { task: WorkerTask.EXECUTE_PEPGM, input: eventData }, progressListener });
     }
 
+    public async clusterTaxa(
+        graphXml: string,
+        taxaWeightsCsv: string,
+        similarityThreshold: number = 0.9
+    ): Promise<string> {
+        const eventData: ClusterTaxaTaskData = {
+            graphXml,
+            taxaWeightsCsv,
+            similarityThreshold
+        }
+
+        return await this.queue.push({ queueInput: { task: WorkerTask.CLUSTER_TAXA, input: eventData }, progressListener: undefined });
+    }
+
+    public async computeGoodness(
+        clusteredTaxaWeightsCsv: string,
+        peptonizerResults: Map<string, number>
+    ): Promise<number> {
+        const eventData: ComputeGoodnessTaskData = {
+            clusteredTaxaWeightsCsv,
+            peptonizerResults
+        };
+
+        return await this.queue.push({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
+    }
+
     /**
      * This function takes care of the results that are returned by the worker and converts them into something
      * usable for the rest of the framework.
@@ -118,7 +145,7 @@ class WorkerPool {
 
             if (eventData.resultType === ResultType.SUCCESSFUL) {
                 if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
-                    resolve(eventData.output.taxaWeightsCsv);
+                    resolve([eventData.output.sequenceScoresCsv, eventData.output.taxaWeightsCsv]);
                 } else if (eventData.task === WorkerTask.GENERATE_GRAPH) {
                     resolve(eventData.output.graphXml);
                 } else if (eventData.task === WorkerTask.EXECUTE_PEPGM) {
@@ -127,6 +154,10 @@ class WorkerPool {
                         peptonizerResult.set(key, value as number);
                     }
                     resolve(peptonizerResult);
+                } else if (eventData.task === WorkerTask.CLUSTER_TAXA) {
+                    resolve(eventData.output.clusteredTaxaWeightsCsv);
+                } else if (eventData.task === WorkerTask.COMPUTE_GOODNESS) {
+                    resolve(eventData.output.goodness);
                 }
             } else if (eventData.resultType === ResultType.PROGRESS) {
                 if (progressListener && eventData.task === WorkerTask.EXECUTE_PEPGM) {

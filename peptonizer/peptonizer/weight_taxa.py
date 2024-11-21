@@ -78,6 +78,10 @@ def weighted_random_sample(objects, n):
     return sampled_objects
 
 
+# def normalize_unipept_responses(responses, rank):
+#     # For each taxon that's situated deeper than
+
+
 def perform_taxa_weighing(
     unipept_responses: List[any],
     pep_scores: Dict[str, float],
@@ -106,6 +110,7 @@ def perform_taxa_weighing(
 
     """
     print("Parsing Unipept responses from disk...")
+
 
     unipept_responses = weighted_random_sample(unipept_responses, 15000)
 
@@ -140,11 +145,16 @@ def perform_taxa_weighing(
         lambda row: get_lineage_at_specified_rank(row["taxa"], taxa_rank), axis=1
     )
 
+    # unipept_frame.to_csv("higher_taxa_step.csv")
+
     # Divide the number of PSMs of a peptide by the number of taxa the peptide is associated with, exponentiated by 3
     print("Started dividing the number of PSMS of a peptide by the number the peptide is associated with...")
     unipept_frame["weight"] = unipept_frame["psms"].div(
         [len(element) ** 3 for element in unipept_frame["HigherTaxa"]]
     )
+
+    # unipept_frame.to_csv("weight_step.csv")
+
     mask = [len(element) == 1 for element in unipept_frame["HigherTaxa"]]
     unique_psm_taxa = set(i[0] for i in unipept_frame["HigherTaxa"][mask])
     unipept_frame = unipept_frame.explode("HigherTaxa", ignore_index=True)
