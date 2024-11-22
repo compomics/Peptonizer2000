@@ -1,7 +1,7 @@
 # ** Input / output settings **
 
 # Which file should be used as input for the whole pipeline?
-input_file: '../resources/test_files/S11.tsv'
+input_file: '../resources/test_files/Kleiner_U1.tsv'
 
 # In which directory should all output (and intermediate) files be stored. This directory is relative to the location of
 # the Snakefile.
@@ -19,17 +19,17 @@ benchmark_dir: '../benchmarks'
 taxa_in_graph: 100
 
 # Increments of alpha parameter to use for the grid search
-#alpha: [0.8, 0.9, 0.99]
-alpha: [0.99]
+alpha: [0.8, 0.9, 0.99]
+#alpha: [0.99]
 
 # Range of parameter beta to use for the grid search
-#beta: [0.6, 0.7, 0.8, 0.9]
-beta: [0.9]
+beta: [0.6, 0.7, 0.8, 0.9]
+#beta: [0.9]
 
 
 # Range of prior parameter to use for the gird search
-#prior: [0.3, 0.5]
-prior: [0.5]
+prior: [0.3, 0.5]
+#prior: [0.5]
 
 regularized: True
 

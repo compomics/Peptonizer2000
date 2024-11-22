@@ -78,8 +78,11 @@ def weighted_random_sample(objects, n):
     return sampled_objects
 
 
-# def normalize_unipept_responses(responses, rank):
-#     # For each taxon that's situated deeper than
+def normalize_unipept_responses(responses, taxa_rank):
+    # Map all taxa onto the rank specified by the user
+    for response in responses:
+        response["taxa"] = list(set(get_lineage_at_specified_rank(response["taxa"], taxa_rank)))
+    return responses
 
 
 def perform_taxa_weighing(
@@ -111,7 +114,8 @@ def perform_taxa_weighing(
     """
     print("Parsing Unipept responses from disk...")
 
-
+    print("Started mapping all taxon ids to the specified rank...")
+    unipept_responses = normalize_unipept_responses(unipept_responses, taxa_rank)
     unipept_responses = weighted_random_sample(unipept_responses, 15000)
 
     print(f"Using {len(unipept_responses)} sequences as input...")
@@ -140,9 +144,9 @@ def perform_taxa_weighing(
     # Score the degeneracy of a taxa, i.e.,
     # how conserved a peptide sequence is between taxa.
     # map all taxids in the list in the taxa column back to their taxid at species level (or the rank specified by the user)
-    print("Started mapping all taxon ids to the specified rank...")
+    # Right now, HigherTaxa is simply a copy of taxa. This step still needs to be optimized.
     unipept_frame["HigherTaxa"] = unipept_frame.apply(
-        lambda row: get_lineage_at_specified_rank(row["taxa"], taxa_rank), axis=1
+        lambda row: row["taxa"], axis=1
     )
 
     # unipept_frame.to_csv("higher_taxa_step.csv")
