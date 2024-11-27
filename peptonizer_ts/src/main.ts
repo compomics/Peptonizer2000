@@ -1,10 +1,9 @@
 import './style.css'
 import typescriptLogo from "./typescript.svg"
 import peptonizerLogo from "./peptonizer.jpg"
-import { GridSearchProgressListener } from "./GridSearchProgressListener.ts";
+import {PeptonizerParameterSet, PeptonizerProgressListener} from "./PeptonizerProgressListener.ts";
 import { Peptonizer } from "./Peptonizer.ts";
-import {BeliefPropagationParameters} from "./GridSearchWorkerPool.ts";
-import {TSVParser} from "./TSVParser.ts";
+import {PeptonizerInputParser} from "./PeptonizerInputParser.ts";
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
   <div id="app">
@@ -67,7 +66,7 @@ type ProgressViewContainer = {
     iterationsProgressView: HTMLDivElement
 }
 
-class ProgressListener implements GridSearchProgressListener {
+class ProgressListener implements PeptonizerProgressListener {
     private progressViews: ProgressViewContainer[] = [];
 
     constructor(
@@ -101,14 +100,26 @@ class ProgressListener implements GridSearchProgressListener {
                 iterationsProgressView
             });
         }
-
     }
 
-    gridUpdated(
-        params: BeliefPropagationParameters,
-        workerId: number
-    ) {
-        this.progressViews[workerId].gridProgressView.innerHTML = `Currently training model with parameters α = ${params.alpha}, β = ${params.beta}, γ = ${params.prior}.`
+    peptonizerStarted(totalTasks: number, _taskSpecifications: PeptonizerParameterSet[]): void {
+        console.log(`Peptonizer will tune ${totalTasks} sets of parameters.`);
+    }
+
+    peptonizerFinished() {
+        console.log("Peptonizer finished!");
+    }
+
+    taskStarted(parameterset: PeptonizerParameterSet, workerId: number) {
+        console.log(
+            `Started new Peptonizer task on worker ${workerId} with parameters α = ${parameterset.alpha}, β = ${parameterset.beta} and γ = ${parameterset.prior}`
+        );
+    }
+
+    taskFinished(parameterset: PeptonizerParameterSet, workerId: number) {
+        console.log(
+            `Finished Peptonizer task on worker ${workerId} with parameters α = ${parameterset.alpha}, β = ${parameterset.beta} and γ = ${parameterset.prior}`
+        );
     }
 
     graphsUpdated(
@@ -154,7 +165,7 @@ const startToPeptonize = async function() {
 
     const peptonizer = new Peptonizer();
 
-    const [peptidesScores, peptidesCounts] = TSVParser.parse(fileContents);
+    const [peptidesScores, peptidesCounts] = PeptonizerInputParser.parse(fileContents);
 
     const peptonizerResult = await peptonizer.peptonize(
         peptidesScores,

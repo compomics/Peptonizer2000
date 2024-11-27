@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import path from "path";
+import dts from 'vite-plugin-dts';
 
 export default defineConfig({
     assetsInclude: ['**/*.py', '**/*.whl'],
@@ -23,5 +24,13 @@ export default defineConfig({
             }
         },
     },
+    plugins: [
+        // Use `vite-plugin-dts` for type bundling
+        dts({
+            outputDir: 'dist', // Where to output the `.d.ts` file
+            insertTypesEntry: true, // Automatically add the "types" field in `package.json`
+            rollupTypes: true, // Enable bundling all `.d.ts` files into a single file
+        }),
+    ],
     optimizeDeps: { exclude: ["pyodide"] }
 });

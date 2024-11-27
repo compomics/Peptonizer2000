@@ -35,8 +35,6 @@ beta = globals().get('beta')
 prior = globals().get('prior')
 execution_id = globals().get('worker_id')
 
-print("Started running belief propagation")
-
 pepgm_results = peptonizer.run_belief_propagation(
     graph,
     alpha,

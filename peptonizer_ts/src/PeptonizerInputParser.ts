@@ -1,4 +1,4 @@
-class TSVParser {
+class PeptonizerInputParser {
     /**
      * Parses the given TSV string and returns two maps:
      * - peptidesScores: Maps peptide sequences to their maximum score.
@@ -37,4 +37,4 @@ class TSVParser {
     }
 }
 
-export { TSVParser };
+export { PeptonizerInputParser };

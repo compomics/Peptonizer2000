@@ -12,7 +12,7 @@ import {
 } from "./PeptonizerWorkerTypes.ts";
 import async, { QueueObject } from "async";
 import { PeptonizerResult } from "../Peptonizer.ts";
-import { GridSearchProgressListener } from "../GridSearchProgressListener.ts";
+import { PeptonizerProgressListener } from "../PeptonizerProgressListener.ts";
 
 /**
  * A worker pool that can be used to generate factor graphs for PepGM that can, in turn, be send as input to the belief
@@ -20,8 +20,7 @@ import { GridSearchProgressListener } from "../GridSearchProgressListener.ts";
  */
 class WorkerPool {
     private workers: [Worker, number][] = [];
-    private queue: QueueObject<{ queueInput: SpecificInputEventData, progressListener?: GridSearchProgressListener
-    }>;
+    private queue: QueueObject<{ queueInput: SpecificInputEventData, progressListener?: PeptonizerProgressListener }>;
 
     constructor(workerCount: number = 1) {
         for (let i = 0; i < workerCount; i++) {
@@ -33,6 +32,18 @@ class WorkerPool {
         ) => {
             // Retrieve worker from the pool.
             const [worker, workerId] = this.workers.pop()!;
+
+            if (queueData.queueInput.task === WorkerTask.EXECUTE_PEPGM && queueData.progressListener) {
+                const parameterSet = queueData.queueInput.input;
+                queueData.progressListener.taskStarted(
+                    {
+                        alpha: parameterSet.alpha,
+                        beta: parameterSet.beta,
+                        prior: parameterSet.prior
+                    },
+                    workerId
+                );
+            }
 
             const result = await new Promise<any>((resolve, reject) => {
                 worker.onmessage = this.handleWorkerMessages(resolve, reject, queueData.progressListener);
@@ -47,6 +58,18 @@ class WorkerPool {
 
             // Add worker back to the pool
             this.workers.push([worker, workerId]);
+
+            if (queueData.queueInput.task === WorkerTask.EXECUTE_PEPGM && queueData.progressListener) {
+                const parameterSet = queueData.queueInput.input;
+                queueData.progressListener.taskFinished(
+                    {
+                        alpha: parameterSet.alpha,
+                        beta: parameterSet.beta,
+                        prior: parameterSet.prior
+                    },
+                    workerId
+                );
+            }
 
             return result;
         }, workerCount);
@@ -88,7 +111,7 @@ class WorkerPool {
         alpha: number,
         beta: number,
         prior: number,
-        progressListener?: GridSearchProgressListener
+        progressListener?: PeptonizerProgressListener
     ): Promise<PeptonizerResult> {
         const eventData: ExecutePepgmTaskData = {
             graphXml,
@@ -138,7 +161,7 @@ class WorkerPool {
     private handleWorkerMessages(
         resolve: (x: any) => void,
         reject: (reason?: any) => void,
-        progressListener?: GridSearchProgressListener
+        progressListener?: PeptonizerProgressListener
     ): (event: MessageEvent<OutputEventData>) => void {
         return (event: MessageEvent<OutputEventData>) => {
             const eventData = event.data;
@@ -172,7 +195,7 @@ class WorkerPool {
     private notifyPepgmProgressListener(
         progressUpdate: PepgmProgressUpdate,
         workerId: number,
-        progressListener: GridSearchProgressListener
+        progressListener: PeptonizerProgressListener
     ): void {
         const currentValue = progressUpdate.currentValue;
         const maxValue = progressUpdate.maxValue;
