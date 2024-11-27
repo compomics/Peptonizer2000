@@ -23,5 +23,5 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-ct_factor_graph = generate_pepgm_graph(pd.read_csv(args.sequence_scores_dataframe_file))
+ct_factor_graph = generate_pepgm_graph(pd.read_csv(args.sequence_scores_dataframe_file, dtype={"HigherTaxa": "Int64"}))
 ct_factor_graph.save_to_graph_ml(args.out)
