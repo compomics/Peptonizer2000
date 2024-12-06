@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import wasm from 'vite-plugin-wasm';
 import path from "path";
 import dts from 'vite-plugin-dts';
 
@@ -31,6 +32,7 @@ export default defineConfig({
             insertTypesEntry: true, // Automatically add the "types" field in `package.json`
             rollupTypes: true, // Enable bundling all `.d.ts` files into a single file
         }),
+        wasm()
     ],
     optimizeDeps: { exclude: ["pyodide"] }
 });

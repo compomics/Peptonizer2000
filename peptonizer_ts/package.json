@@ -15,13 +15,19 @@
   },
   "devDependencies": {
     "typescript": "^5.5.3",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "vite-plugin-wasm": "^3.3.0"
   },
   "dependencies": {
     "@types/async": "^3.2.24",
     "async": "^3.2.6",
+    "copy-webpack-plugin": "11",
+    "peptonizer": "../peptonizer_rust/pkg/",
     "pyodide": "^0.26.3",
     "rollup-plugin-dts": "^6.1.1",
-    "vite-plugin-dts": "^4.3.0"
+    "vite-plugin-dts": "^4.3.0",
+    "webpack": "5",
+    "webpack-cli": "5",
+    "webpack-dev-server": "4"
   }
 }
