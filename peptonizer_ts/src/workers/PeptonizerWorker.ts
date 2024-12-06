@@ -5,6 +5,8 @@ import {
     ClusterTaxaTaskDataResult, ComputeGoodnessDataResult, ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
     ExecutePepgmTaskDataResult,
+    FetchUnipeptTaxonTaskData,
+    FetchUnipeptTaxonTaskResult,
     GenerateGraphTaskData,
     GenerateGraphTaskDataResult,
     InputEventData,
@@ -15,6 +17,7 @@ import {
     WorkerTask
 } from "./PeptonizerWorkerTypes.ts";
 
+import fetchUnipeptTaxonPythonCode from "./lib/fetch_unipept_taxon_info.py?raw"
 import performTaxaWeighingPythonCode from "./lib/perform_taxa_weighing.py?raw";
 import generateGraphPythonCode from "./lib/generate_pepgm_graph.py?raw";
 import executePepgmPythonCode from "./lib/execute_pepgm.py?raw";
@@ -68,8 +71,19 @@ async function loadPyodideAndPackages(): Promise<void> {
     `);
 }
 
+async function fetchUnipeptTaxonInformation(data: FetchUnipeptTaxonTaskData): Promise<FetchUnipeptTaxonTaskResult> {
+    // Set inputs for the Python code
+    self.pyodide.globals.set('peptides_scores', data.peptidesScores);
+
+    // Fetch the Python code and execute it with Pyodide
+    const unipeptJson = await self.pyodide.runPythonAsync(fetchUnipeptTaxonPythonCode);
+
+    return { unipeptJson };
+}
+
 async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<PerformTaxaWeighingTaskResult> {
     // Set inputs for the Python code
+    self.pyodide.globals.set('unipept_json', data.unipeptJson);
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
 
@@ -159,9 +173,11 @@ self.onmessage = async (event: MessageEvent<InputEventData>): Promise<void> => {
         // Destructure the data from the event
         const eventData = event.data;
 
-        let output: PerformTaxaWeighingTaskResult | GenerateGraphTaskDataResult | ExecutePepgmTaskDataResult | ClusterTaxaTaskDataResult | ComputeGoodnessDataResult | undefined;
+        let output: FetchUnipeptTaxonTaskResult | PerformTaxaWeighingTaskResult | GenerateGraphTaskDataResult | ExecutePepgmTaskDataResult | ClusterTaxaTaskDataResult | ComputeGoodnessDataResult | undefined;
 
-        if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
+        if (eventData.task === WorkerTask.FETCH_UNIPEPT_TAXON) {
+            output = await fetchUnipeptTaxonInformation(eventData.input);
+        } else if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
             output = await performTaxaWeighing(eventData.input);
         } else if (eventData.task === WorkerTask.GENERATE_GRAPH) {
             output = await generateGraph(eventData.input);

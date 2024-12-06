@@ -2,6 +2,7 @@ import PeptonizerWorker from './PeptonizerWorker.ts?worker&inline';
 import {
     ClusterTaxaTaskData, ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
+    FetchUnipeptTaxonTaskData,
     GenerateGraphTaskData,
     InputEventData,
     OutputEventData, PepgmProgressUpdate,
@@ -75,6 +76,14 @@ class WorkerPool {
         }, workerCount);
     }
 
+    public async fetchUnipeptTaxonInfo(peptidesScores: Map<string, number>): Promise<string> {
+        const eventData: FetchUnipeptTaxonTaskData = {
+            peptidesScores
+        };
+
+        return await this.queue.push({ queueInput: { task: WorkerTask.FETCH_UNIPEPT_TAXON, input: eventData }, progressListener: undefined });
+    }
+
     /**
      * Generates a CSV-file representing a dataframe with all the taxa weights required for the Peptonizer. These
      * taxa weights will be used in a subsequent step of the Peptonizer to generate the factor graph.
@@ -86,11 +95,13 @@ class WorkerPool {
      */
     public async performTaxaWeighing(
         peptidesScores: Map<string, number>,
-        peptidesCounts: Map<string, number>
+        peptidesCounts: Map<string, number>,
+        unipeptJson: string
     ): Promise<[string, string]> {
         const eventData: PerformTaxaWeighingTaskData = {
             peptidesScores,
-            peptidesCounts
+            peptidesCounts,
+            unipeptJson
         };
 
         return await this.queue.push({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
@@ -167,7 +178,9 @@ class WorkerPool {
             const eventData = event.data;
 
             if (eventData.resultType === ResultType.SUCCESSFUL) {
-                if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
+                if (eventData.task === WorkerTask.FETCH_UNIPEPT_TAXON) {
+                    resolve(eventData.output.unipeptJson)
+                } else if (eventData.task === WorkerTask.PERFORM_TAXA_WEIGHING) {
                     resolve([eventData.output.sequenceScoresCsv, eventData.output.taxaWeightsCsv]);
                 } else if (eventData.task === WorkerTask.GENERATE_GRAPH) {
                     resolve(eventData.output.graphXml);

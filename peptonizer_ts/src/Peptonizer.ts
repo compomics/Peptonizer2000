@@ -33,7 +33,8 @@ class Peptonizer {
     ): Promise<PeptonizerResult> {
         const workerPool = new WorkerPool(workers);
 
-        const [sequenceScoresCsv, taxonWeightsCsv] = await workerPool.performTaxaWeighing(peptidesScores, peptidesCounts);
+        const unipept_json = await workerPool.fetchUnipeptTaxonInfo(peptidesScores);
+        const [sequenceScoresCsv, taxonWeightsCsv] = await workerPool.performTaxaWeighing(peptidesScores, peptidesCounts, unipept_json);
         const generatedGraph = await workerPool.generateGraph(sequenceScoresCsv);
 
         // Compute the total amount of tasks and which tasks to perform.
