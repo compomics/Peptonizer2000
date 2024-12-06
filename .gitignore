@@ -96,3 +96,7 @@ wheels/
 .installed.cfg
 *.egg
 *.tar.gz
+
+# Rust
+peptonizer_rust/target/
+peptonizer_rust/Cargo.lock
