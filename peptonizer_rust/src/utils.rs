@@ -1,5 +1,5 @@
 use wasm_bindgen::prelude::*;
-
+use serde::Deserialize;
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -19,4 +19,10 @@ pub fn log(s: &str) {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn error(s: &str) {
     eprintln!("{}", s);
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct UnipeptJson {
+    pub sequence: String,
+    pub taxa: Vec<i32>,
 }

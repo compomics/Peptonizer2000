@@ -67,7 +67,7 @@ impl TaxonManager{
         http_response_map
     }
 
-    pub fn get_lineages_for_taxa(target_taxa: &Vec<i32>, lineage_cache: &mut HashMap<i32, Vec<Option<i32>>>) -> HashMap<i32, Vec<Option<i32>>> {
+    pub fn get_unique_lineage_at_specified_rank(target_taxa: &Vec<i32>, taxa_rank: &str, lineage_cache: &mut HashMap<i32, Vec<Option<i32>>>) -> Vec<i32> {
 
         let url: String = format!("{}{}", TaxonManager::UNIPEPT_URL, TaxonManager::UNIPEPT_TAXONOMY_ENDPOINT);
 
@@ -101,12 +101,13 @@ impl TaxonManager{
             
         }
 
-        let mut lineages = HashMap::new();
-        for taxon in target_taxa {
-            lineages.insert(taxon, lineage_cache[&taxon].clone());
-        }
+        let rank_idx = TaxonManager::NCBI_RANKS.iter().position(|&ncbi_rank| ncbi_rank == taxa_rank).unwrap();
+        let lineage: HashSet<i32> = target_taxa.iter()
+                                                .filter_map(|taxon| lineage_cache[&taxon][rank_idx].clone())
+                                                .collect();
+        let lineage: Vec<i32> = lineage.into_iter().collect();
 
-        lineages
+        lineage
     }
 
 }

@@ -1,18 +1,21 @@
 use wasm_bindgen::prelude::*;
-use serde::Deserialize;
 use serde_json::{Value, Result};
 use utils::*;
 use std::collections::HashMap;
+use random::select_random_responses_with_weights;
+
 
 extern crate wasm_bindgen;
 extern crate serde_json;
 extern crate serde;
 extern crate web_sys;
 extern crate wasm_bindgen_futures;
+extern crate js_sys;
 
 mod taxon_manager;
 mod utils;
 mod http_client;
+mod random;
 
 #[wasm_bindgen]
 pub fn perform_taxa_weighing(
@@ -39,12 +42,7 @@ pub fn perform_taxa_weighing(
 
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut unipept_responses, &taxa_rank);
-}
-
-#[derive(Debug, Deserialize)]
-struct UnipeptJson {
-    sequence: String,
-    taxa: Vec<i32>,
+    let unipept_responses = weighted_random_sample(unipept_responses, 15000);
 }
 
 fn normalize_unipept_responses(unipept_responses: &mut Vec<UnipeptJson>, taxa_rank: &str) {
@@ -53,13 +51,17 @@ fn normalize_unipept_responses(unipept_responses: &mut Vec<UnipeptJson>, taxa_ra
 
     // Map all taxa onto the rank specified by the user
     for i in 0..unipept_responses.len() {
-        unipept_responses[i].taxa = get_unique_lineage_at_specified_rank(&unipept_responses[i].taxa, taxa_rank, &mut lineage_cache);
+        unipept_responses[i].taxa = taxon_manager::TaxonManager::get_unique_lineage_at_specified_rank(&unipept_responses[i].taxa, taxa_rank, &mut lineage_cache);
     }
 }
 
-fn get_unique_lineage_at_specified_rank(tax_ids: &Vec<i32>, taxa_rank: &str, lineage_cache: &mut HashMap<i32, Vec<Option<i32>>>) -> Vec<i32> {
+fn weighted_random_sample(unipept_responses: Vec<UnipeptJson>, n: usize) -> Vec<UnipeptJson> {
     
-    let lineages = taxon_manager::TaxonManager::get_lineages_for_taxa(tax_ids, lineage_cache);
-    
-    return vec!(1);
+    // Calculate normalized weights based on the length of the taxa array
+    let total_length: usize = unipept_responses.iter().map(|response| response.taxa.len()).sum();
+    let weights: Vec<f32> = unipept_responses.iter().map(|response| response.taxa.len() as f32 / total_length as f32).collect();
+
+    let samples: Vec<UnipeptJson> = select_random_responses_with_weights(unipept_responses, weights, n);
+
+    samples
 }
