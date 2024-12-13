@@ -16,8 +16,9 @@ import {
     ResultType,
     WorkerTask
 } from "./PeptonizerWorkerTypes.ts";
+import init, { perform_taxa_weighing } from "../../pkg/peptonizer.js";
 
-import fetchUnipeptTaxonPythonCode from "./lib/fetch_unipept_taxon_info.py?raw"
+import fetchUnipeptTaxonPythonCode from "./lib/fetch_unipept_taxon_info.py?raw";
 import performTaxaWeighingPythonCode from "./lib/perform_taxa_weighing.py?raw";
 import generateGraphPythonCode from "./lib/generate_pepgm_graph.py?raw";
 import executePepgmPythonCode from "./lib/execute_pepgm.py?raw";
@@ -33,6 +34,7 @@ interface DedicatedWorkerGlobalScope {
 declare const self: DedicatedWorkerGlobalScope & typeof globalThis;
 
 async function loadPyodideAndPackages(): Promise<void> {
+    await init();
     self.pyodide = await loadPyodide({
         indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.3/full/'
     });
@@ -82,8 +84,16 @@ async function fetchUnipeptTaxonInformation(data: FetchUnipeptTaxonTaskData): Pr
 }
 
 async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<PerformTaxaWeighingTaskResult> {
+
+    let unipeptResponse = data.unipeptJson;
+    let peptidesScores = JSON.stringify(Object.fromEntries(data.peptidesScores));
+    let peptidesCounts = JSON.stringify(Object.fromEntries(data.peptidesCounts));
+
+    perform_taxa_weighing(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
+    
+
     // Set inputs for the Python code
-    self.pyodide.globals.set('unipept_json', data.unipeptJson);
+    /*self.pyodide.globals.set('unipept_json', data.unipeptJson);
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
 
@@ -93,7 +103,9 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     return {
         sequenceScoresCsv,
         taxaWeightsCsv
-    };
+    };*/
+
+    
 }
 
 async function generateGraph(data: GenerateGraphTaskData): Promise<GenerateGraphTaskDataResult> {

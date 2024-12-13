@@ -4,7 +4,6 @@ import peptonizerLogo from "./peptonizer.jpg"
 import {PeptonizerParameterSet, PeptonizerProgressListener} from "./PeptonizerProgressListener.ts";
 import { Peptonizer } from "./Peptonizer.ts";
 import {PeptonizerInputParser} from "./PeptonizerInputParser.ts";
-import * as wasm from "peptonizer"
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
   <div id="app">
@@ -150,7 +149,6 @@ class ProgressListener implements PeptonizerProgressListener {
 
 
 const startToPeptonize = async function() {
-    wasm.greet("WebAssembly");
     const resultView: HTMLElement = document.getElementById("result-view")!;
     const inputElement: HTMLElement = document.getElementById("inputs")!;
     const loadingSpinner: HTMLElement = document.getElementById("loading-spinner")!;
