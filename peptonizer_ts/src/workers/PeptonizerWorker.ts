@@ -24,6 +24,7 @@ import generateGraphPythonCode from "./lib/generate_pepgm_graph.py?raw";
 import executePepgmPythonCode from "./lib/execute_pepgm.py?raw";
 import clusterTaxaPythonCode from "./lib/cluster_taxa.py?raw";
 import computeGoodnessPythonCode from "./lib/compute_goodness.py?raw";
+import { timeout } from 'async';
 
 interface DedicatedWorkerGlobalScope {
     pyodide: PyodideInterface;
@@ -84,26 +85,28 @@ async function fetchUnipeptTaxonInformation(data: FetchUnipeptTaxonTaskData): Pr
 }
 
 async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<PerformTaxaWeighingTaskResult> {
-
+    console.time("Execution Time");
+    
     let unipeptResponse = data.unipeptJson;
     let peptidesScores = JSON.stringify(Object.fromEntries(data.peptidesScores));
     let peptidesCounts = JSON.stringify(Object.fromEntries(data.peptidesCounts));
 
-    perform_taxa_weighing(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
-    
-
+    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
+    /*
     // Set inputs for the Python code
-    /*self.pyodide.globals.set('unipept_json', data.unipeptJson);
+    self.pyodide.globals.set('unipept_json', data.unipeptJson);
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
 
     // Fetch the Python code and execute it with Pyodide
     const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
+    */
 
+    console.timeEnd("Execution Time");
     return {
         sequenceScoresCsv,
         taxaWeightsCsv
-    };*/
+    };
 
     
 }

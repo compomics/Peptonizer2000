@@ -1,8 +1,8 @@
 use wasm_bindgen::prelude::*;
-use serde_json::{Value, Result};
 use utils::*;
 use std::collections::{HashMap, HashSet};
 use random::select_random_samples_with_weights;
+use csv::Writer;
 
 
 extern crate wasm_bindgen;
@@ -24,7 +24,7 @@ pub fn perform_taxa_weighing(
     pep_psm_counts: String,
     max_taxa: usize,
     taxa_rank: String
-) {
+) -> Box<[JsValue]> {
     log("Parsing Unipept responses from disk...");
     let unipept_responses: Vec<UnipeptJson> = serde_json::from_str(&unipept_responses).unwrap();
 
@@ -34,7 +34,7 @@ pub fn perform_taxa_weighing(
     
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut taxa, &taxa_rank);
-    let chosen_idx: Vec<usize> = weighted_random_sample(&sequences, &taxa, 15000);
+    let chosen_idx: Vec<usize> = weighted_random_sample(&taxa, 10000);
 
     log(&format!("Using {} sequences as input...", chosen_idx.len()));
 
@@ -79,10 +79,15 @@ pub fn perform_taxa_weighing(
 
     // Sum up the weights of a taxon and sort by weight
     log("Started summing the weights of a taxon and sorting them by weight...");
-    let log_weight: Vec<f32> = weights.iter().map(|w| (w + 1.0).log10()).collect();
+    let log_weights: Vec<f32> = weights.iter().map(|w| (w + 1.0).log10()).collect();
+
+    //  Since large proteomes tend to have more detectable peptides,
+    // we adjust the weight by dividing by the size of the proteome i.e.,
+    // the number of proteins that are associated with a taxon
+    let scaled_weight = log_weights.clone();
 
     let mut tax_id_weights: HashMap<i32, f32> = HashMap::new();
-    for (ids, weight) in higher_taxa.into_iter().zip(log_weight.clone().into_iter()) {
+    for (ids, weight) in higher_taxa.clone().into_iter().zip(scaled_weight.clone().into_iter()) {
         for id in ids {
             *tax_id_weights.entry(id).or_insert(0.0) += weight;
         }
@@ -91,31 +96,79 @@ pub fn perform_taxa_weighing(
     sorted_tax_id_weights.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
     let (tax_ids, tax_id_weights): (Vec<i32>, Vec<f32>) = sorted_tax_id_weights.into_iter().unzip();
 
-    //  Since large proteomes tend to have more detectable peptides,
-    // we adjust the weight by dividing by the size of the proteome i.e.,
-    // the number of proteins that are associated with a taxon
-    let scaled_weight = log_weight;
-
     // Retrieves the specified taxonomic rank taxid in the lineage of each of the species-level taxids returned by
     // Unipept for both the UnipeptFrame and the TaxIdWeightFrame
     let higher_unique_psm_taxids = unique_psm_taxa;
 
     // Group the duplicate entries of higher up taxa and sum their weights
-    let higher_taxid_weights = scaled_weight;
+    let higher_taxid_weights = tax_id_weights;
 
     let tax_ids: Vec<i32> = tax_ids.into_iter().filter(|id| *id != 1869227).collect(); // TODO: is this correct?
-    let higher_taxid_unique = tax_ids.iter().map(|id| higher_unique_psm_taxids.contains(&id));
+    let higher_taxid_unique: Vec<bool> = tax_ids.iter().map(|id| higher_unique_psm_taxids.contains(&id)).collect();
 
-    // TODO: check if duplicate removal is necessary, example datasets do not contain doubles.
-
+    // TODO: check if duplicate removal is necessary, example datasets do not contain doubles. Link to sampling. Lower the amount of sampled?
+    let sequence_csv;
     if tax_ids.len() < 50 {
-        // Return csvs
-        log("max taxa < 50");
+        sequence_csv = generate_sequence_csv(None, false, sequences, pep_scores, pep_psm_counts, higher_taxa, weights, log_weights);
     } else {
         let mut taxa_to_include: HashSet<i32> = tax_ids.iter().take(max_taxa).cloned().collect();
         taxa_to_include.extend(higher_unique_psm_taxids);
-        // filter score vectors and return csvs
+
+        sequence_csv = generate_sequence_csv(Some(taxa_to_include), true, sequences, pep_scores, pep_psm_counts, higher_taxa, weights, log_weights);
     }
+
+    let taxa_weights_csv = generate_taxa_weights_csv(tax_ids, higher_taxid_weights, higher_taxid_unique);
+
+    Box::new([JsValue::from(sequence_csv), JsValue::from(taxa_weights_csv)])
+}
+
+fn generate_sequence_csv(taxa_to_include: Option<HashSet<i32>>, filter_taxa: bool, sequences: Vec<String>, scores: Vec<f32>, psms: Vec<i32>, higher_taxa: Vec<Vec<i32>>, weights: Vec<f32>, log_weights: Vec<f32>) -> String {
+
+    let mut wtr = Writer::from_writer(vec![]);
+
+    let _ = wtr.write_record(&["", "sequence", "score", "psms", "HigherTaxa", "weight", "log_weight"]);
+
+    let mut id = 0;
+    for i in 0..sequences.len() {
+        for taxon in &higher_taxa[i] {
+            if (! filter_taxa) || taxa_to_include.as_ref().unwrap().contains(&taxon) {
+                let _ = wtr.write_record(&[
+                    id.to_string(),
+                    sequences[i].clone(), 
+                    scores[i].to_string(), 
+                    psms[i].to_string(), 
+                    taxon.to_string(), 
+                    weights[i].to_string(), 
+                    log_weights[i].to_string()
+                ]).unwrap();
+                id += 1;
+            }
+        }
+    }
+
+    let csv: String = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+
+    csv
+}
+
+fn generate_taxa_weights_csv(higher_taxa: Vec<i32>, higher_taxid_weights: Vec<f32>, higher_taxid_unique: Vec<bool>) -> String {
+    let mut wtr = Writer::from_writer(vec![]);
+
+    let _ = wtr.write_record(&["", "HigherTaxa", "scaled_weight", "Unique"]);
+
+    for i in 0..higher_taxa.len() {
+        let _ = wtr.write_record(&[
+            i.to_string(),
+            higher_taxa[i].to_string(),
+            higher_taxid_weights[i].to_string(),
+            higher_taxid_unique[i].to_string()
+        ]).unwrap();
+    }
+
+    let csv: String = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+
+    csv
+    
 }
 
 fn normalize_unipept_responses(taxa: &mut Vec<Vec<i32>>, taxa_rank: &str) {
@@ -128,14 +181,14 @@ fn normalize_unipept_responses(taxa: &mut Vec<Vec<i32>>, taxa_rank: &str) {
     }
 }
 
-fn weighted_random_sample(sequences: &Vec<String>, taxa: &Vec<Vec<i32>>, n: usize) -> Vec<usize> {
+fn weighted_random_sample(taxa: &Vec<Vec<i32>>, n: usize) -> Vec<usize> {
     
     // Calculate normalized weights based on the length of the taxa array
     let weights: Vec<f64> = taxa.iter().map(|taxon| if taxon.len() == 0 { 0.0 } else { 1.0 / taxon.len() as f64 }).collect();
     let total_weight: f64 = weights.iter().sum();
     let normalized_weights: Vec<f64> = weights.iter().map(|w| w / total_weight as f64).collect();
 
-    let samples: Vec<usize> = select_random_samples_with_weights(sequences, normalized_weights, n);
+    let samples: Vec<usize> = select_random_samples_with_weights(normalized_weights, n);
 
     samples
 }

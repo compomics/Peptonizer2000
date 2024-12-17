@@ -1,9 +1,7 @@
 use serde::{Serialize, Deserialize };
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen_futures::JsFuture;
-#[cfg(target_arch = "wasm32")]
-use web_sys::{Request, RequestInit, RequestMode, Response, XmlHttpRequest};
+use web_sys::{XmlHttpRequest};
 
 pub trait HttpClient {
     fn perform_post_request(&self, url: String, batch: Vec<i32>) -> Result<String, String>;
@@ -36,7 +34,7 @@ impl HttpClient for WasmHttpClient {
         xhr.send_with_opt_str(Some(&payload_json))
             .map_err(|e| format!("Failed to send request: {:?}", e))?;
         
-        let status = xhr.status().map_err(|e| format!("Failed to extract status from response"))?;
+        let status = xhr.status().map_err(|_e| format!("Failed to extract status from response"))?;
         if status == 200 {
             let response = xhr.response_text()
             .expect("Expected json in response")

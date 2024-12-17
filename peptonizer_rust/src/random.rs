@@ -1,9 +1,8 @@
 use js_sys::Math;
-use crate::utils::*;
+use std::collections::HashSet;
 
 #[cfg(target_arch = "wasm32")]
 pub fn select_random_samples_with_weights(
-    responses: &Vec<String>,
     weights: Vec<f64>,
     n: usize,
 ) -> Vec<usize> {
@@ -16,7 +15,8 @@ pub fn select_random_samples_with_weights(
         })
         .collect();
 
-    let mut samples: Vec<usize> = Vec::with_capacity(n);
+    let mut samples: HashSet<usize> = HashSet::with_capacity(n);
+
 
     while samples.len() < n {
         let r = Math::random() as f64; 
@@ -25,8 +25,11 @@ pub fn select_random_samples_with_weights(
         }
 
         let chosen_idx: usize = cumulative_weights.binary_search_by(|&w| w.partial_cmp(&r).unwrap()).unwrap_or_else(|x| x);
-        samples.push(chosen_idx);
+
+        samples.insert(chosen_idx);
     }
+
+    let samples: Vec<usize> = samples.iter().cloned().collect();
 
     samples
 }

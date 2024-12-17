@@ -1,7 +1,5 @@
 use std::collections::{ HashMap, HashSet };
-use serde::{Serialize, Deserialize };
-use serde_json::{ json, Value };
-use crate::utils::*;
+use serde_json::{ Value };
 use crate::http_client::*;
 
 pub struct TaxonManager;
