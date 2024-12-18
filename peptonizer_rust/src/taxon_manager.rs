@@ -87,7 +87,8 @@ impl TaxonManager{
                 http_client.perform_post_request(url.clone(), batch)
                 .map_err(|e| format!("Failed to retrieve taxonomy data for batch {}. Error message: {}", (i / TaxonManager::TAXONOMY_ENDPOINT_BATCH_SIZE), e))
                 .unwrap();
-            let http_response = Self::parse_response_json_string(&http_response);
+
+                let http_response = Self::parse_response_json_string(&http_response);
 
             for lineage_json in &http_response {
                 let lineage: Vec<Option<i32>> = TaxonManager::NCBI_RANKS.iter()

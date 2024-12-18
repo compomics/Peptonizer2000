@@ -1,7 +1,5 @@
 use serde::{Serialize, Deserialize };
-
-#[cfg(target_arch = "wasm32")]
-use web_sys::{XmlHttpRequest};
+use crate::utils::*;
 
 pub trait HttpClient {
     fn perform_post_request(&self, url: String, batch: Vec<i32>) -> Result<String, String>;
@@ -10,9 +8,15 @@ pub trait HttpClient {
 #[cfg(target_arch = "wasm32")]
 pub struct WasmHttpClient;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub struct PyHttpClient;
+
 #[cfg(target_arch = "wasm32")]
 impl HttpClient for WasmHttpClient {
+
     fn perform_post_request(&self, url: String, batch: Vec<i32>) -> Result<String, String> {
+        use web_sys::{XmlHttpRequest};
+
         let payload = HTTPPostPayload {
             input: batch,
             extra: true
@@ -47,11 +51,50 @@ impl HttpClient for WasmHttpClient {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+impl HttpClient for PyHttpClient {
+
+    fn perform_post_request(&self, url: String, batch: Vec<i32>) -> Result<String, String> {
+        use reqwest::Client;
+        use tokio::runtime::Runtime;
+
+        let payload = HTTPPostPayload {
+            input: batch,
+            extra: true
+        };
+
+        // Create a Tokio runtime for async execution
+        let rt = Runtime::new().unwrap();
+
+        // Execute the HTTP POST request within the runtime
+        let result = rt.block_on(async {
+            let client = Client::new();
+            let response = client.post(&url)
+                .json(&payload)
+                .send()
+                .await?;
+
+            // Get the response body as a string
+            response.text().await
+        });
+        
+        // Handle the result and convert to PyResult
+        match result {
+            Ok(body) => Ok(body),
+            Err(e) => Err(format!("HTTP POST request failed: {}", e)),
+        }
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 pub fn create_http_client() -> impl HttpClient {
-    #[cfg(target_arch = "wasm32")]
     WasmHttpClient
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub fn create_http_client() -> impl HttpClient {
+    PyHttpClient
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct HTTPPostPayload {

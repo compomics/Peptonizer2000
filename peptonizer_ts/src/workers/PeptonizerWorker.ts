@@ -16,7 +16,7 @@ import {
     ResultType,
     WorkerTask
 } from "./PeptonizerWorkerTypes.ts";
-import init, { perform_taxa_weighing } from "../../pkg/peptonizer.js";
+import init, { perform_taxa_weighing_wasm } from "../../pkg/peptonizer_rust.js";
 
 import fetchUnipeptTaxonPythonCode from "./lib/fetch_unipept_taxon_info.py?raw";
 import performTaxaWeighingPythonCode from "./lib/perform_taxa_weighing.py?raw";
@@ -91,7 +91,7 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     let peptidesScores = JSON.stringify(Object.fromEntries(data.peptidesScores));
     let peptidesCounts = JSON.stringify(Object.fromEntries(data.peptidesCounts));
 
-    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
+    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing_wasm(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
     /*
     // Set inputs for the Python code
     self.pyodide.globals.set('unipept_json', data.unipeptJson);
