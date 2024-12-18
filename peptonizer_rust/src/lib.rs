@@ -34,7 +34,7 @@ pub fn perform_taxa_weighing(
     
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut taxa, &taxa_rank);
-    let chosen_idx: Vec<usize> = weighted_random_sample(&taxa, 10000);
+    let chosen_idx: Vec<usize> = weighted_random_sample(&taxa, 15000);
 
     log(&format!("Using {} sequences as input...", chosen_idx.len()));
 

@@ -15,7 +15,7 @@ pub fn select_random_samples_with_weights(
         })
         .collect();
 
-    let mut samples: HashSet<usize> = HashSet::with_capacity(n);
+    let mut samples: Vec<usize> = Vec::with_capacity(n);
 
 
     while samples.len() < n {
@@ -26,10 +26,11 @@ pub fn select_random_samples_with_weights(
 
         let chosen_idx: usize = cumulative_weights.binary_search_by(|&w| w.partial_cmp(&r).unwrap()).unwrap_or_else(|x| x);
 
-        samples.insert(chosen_idx);
+        samples.push(chosen_idx);
     }
 
-    let samples: Vec<usize> = samples.iter().cloned().collect();
+    let samples_set: HashSet<usize> = samples.iter().cloned().collect();
+    let samples: Vec<usize> = samples_set.iter().cloned().collect();
 
     samples
 }
