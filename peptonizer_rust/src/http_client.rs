@@ -1,5 +1,4 @@
 use serde::{Serialize, Deserialize };
-use crate::utils::*;
 
 pub trait HttpClient {
     fn perform_post_request(&self, url: String, batch: Vec<i32>) -> Result<String, String>;

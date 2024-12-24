@@ -16,7 +16,7 @@ import {
     ResultType,
     WorkerTask
 } from "./PeptonizerWorkerTypes.ts";
-import init, { perform_taxa_weighing_wasm } from "../../pkg/peptonizer_rust.js";
+import init, { perform_taxa_weighing_wasm, run_belief_propagation_wasm } from "../../pkg/peptonizer_rust.js";
 
 import fetchUnipeptTaxonPythonCode from "./lib/fetch_unipept_taxon_info.py?raw";
 import performTaxaWeighingPythonCode from "./lib/perform_taxa_weighing.py?raw";
@@ -122,13 +122,16 @@ async function generateGraph(data: GenerateGraphTaskData): Promise<GenerateGraph
 }
 
 async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promise<ExecutePepgmTaskDataResult> {
-    self.pyodide.globals.set('graph', data.graphXml);
+    /*self.pyodide.globals.set('graph', data.graphXml);
     self.pyodide.globals.set('alpha', data.alpha);
     self.pyodide.globals.set('beta', data.beta);
     self.pyodide.globals.set('prior', data.prior);
     self.pyodide.globals.set('worker_id', workerId);
 
-    const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);
+    const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);*/
+
+    const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
+    console.log(taxonScoresJson);
 
     return {
         taxonScoresJson

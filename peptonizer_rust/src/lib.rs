@@ -7,6 +7,9 @@ mod utils;
 mod http_client;
 mod random;
 mod weight_taxa;
+mod zero_lookahead_belief_propagation;
+mod factor_graph_node;
+mod factor_graph;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
@@ -18,6 +21,7 @@ pub use pyo3::*;
 mod wasm {
     use wasm_bindgen::prelude::*;
     use crate::weight_taxa::perform_taxa_weighing;
+    use crate::zero_lookahead_belief_propagation::run_belief_propagation;
 
     extern crate wasm_bindgen;
     extern crate web_sys;
@@ -36,6 +40,22 @@ mod wasm {
         let (sequence_csv, taxa_weights_csv): (String, String) = perform_taxa_weighing(unipept_responses, pep_scores, pep_psm_counts, max_taxa, taxa_rank);
 
         Box::new([JsValue::from(sequence_csv), JsValue::from(taxa_weights_csv)])
+    }
+
+    #[wasm_bindgen]
+    pub fn run_belief_propagation_wasm(
+        graph: String,
+        alpha: f32,
+        beta: f32,
+        regularized: bool,
+        prior: f32,
+        max_iter: Option<i32>,
+        tol: Option<f32>
+    ) -> String {
+        let max_iter: i32 = max_iter.unwrap_or(10000);
+        let tol: f32 = tol.unwrap_or(0.006);
+        
+        run_belief_propagation(graph, alpha, beta, regularized, prior, max_iter, tol)
     }
 
 }

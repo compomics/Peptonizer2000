@@ -4,6 +4,8 @@ use crate::random::select_random_samples_with_weights;
 use csv::Writer;
 use crate::taxon_manager::TaxonManager;
 
+/// Weight inferred taxa based on their (1) degeneracy and (2) their proteome size.
+/// Parameters
 pub fn perform_taxa_weighing(
     unipept_responses: String,
     pep_scores: String,
@@ -20,7 +22,6 @@ pub fn perform_taxa_weighing(
     
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut taxa, &taxa_rank);
-    log("sampling");
     let chosen_idx: HashSet<usize> = weighted_random_sample(&taxa, 10000);
 
     log(&format!("Using {} sequences as input...", chosen_idx.len()));
