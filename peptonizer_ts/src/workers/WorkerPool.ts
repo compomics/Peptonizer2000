@@ -1,10 +1,12 @@
 import PeptonizerWorker from './PeptonizerWorker.ts?worker&inline';
 import {
-    ClusterTaxaTaskData, ComputeGoodnessTaskData,
+    ClusterTaxaTaskData,
+    ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
     GenerateGraphTaskData,
     InputEventData,
-    OutputEventData, PepgmProgressUpdate,
+    OutputEventData,
+    PepgmProgressUpdate,
     PerformTaxaWeighingTaskData,
     ResultType,
     SpecificInputEventData,
@@ -20,11 +22,15 @@ import { PeptonizerProgressListener } from "../PeptonizerProgressListener.ts";
  */
 class WorkerPool {
     private workers: [Worker, number][] = [];
+    private allWorkers: Worker[] = [];
     private queue: QueueObject<{ queueInput: SpecificInputEventData, progressListener?: PeptonizerProgressListener }>;
+    private isCancelled: boolean = false;
 
     constructor(workerCount: number = 1) {
         for (let i = 0; i < workerCount; i++) {
-            this.workers.push([new PeptonizerWorker(), i]);
+            const worker = new PeptonizerWorker();
+            this.allWorkers.push(worker);
+            this.workers.push([worker, i]);
         }
 
         this.queue = async.queue(async(
@@ -82,15 +88,25 @@ class WorkerPool {
      * @param peptidesScores Mapping between peptide sequences that need to be considered by the peptonizer and a
      * scoring value assigned to each sequence by prior steps (e.g. search engines).
      * @param peptidesCounts Mapping between peptide sequences and their occurrences in the input file.
+     * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference?
+     * @param taxaInGraph How many taxa are being used in the graphical model?
      * @return A CSV-representation of a dataframe with taxon weights.
      */
     public async performTaxaWeighing(
         peptidesScores: Map<string, number>,
-        peptidesCounts: Map<string, number>
+        peptidesCounts: Map<string, number>,
+        rank: string,
+        taxaInGraph: number,
     ): Promise<[string, string]> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: PerformTaxaWeighingTaskData = {
             peptidesScores,
-            peptidesCounts
+            peptidesCounts,
+            rank,
+            taxaInGraph
         };
 
         return await this.queue.push({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
@@ -99,6 +115,10 @@ class WorkerPool {
     public async generateGraph(
         taxaWeightsCsv: string
     ): Promise<string> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: GenerateGraphTaskData = {
             taxaWeightsCsv
         };
@@ -113,6 +133,10 @@ class WorkerPool {
         prior: number,
         progressListener?: PeptonizerProgressListener
     ): Promise<PeptonizerResult> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ExecutePepgmTaskData = {
             graphXml,
             alpha,
@@ -128,6 +152,10 @@ class WorkerPool {
         taxaWeightsCsv: string,
         similarityThreshold: number = 0.9
     ): Promise<string> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ClusterTaxaTaskData = {
             graphXml,
             taxaWeightsCsv,
@@ -141,12 +169,26 @@ class WorkerPool {
         clusteredTaxaWeightsCsv: string,
         peptonizerResults: Map<string, number>
     ): Promise<number> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ComputeGoodnessTaskData = {
             clusteredTaxaWeightsCsv,
             peptonizerResults
         };
 
         return await this.queue.push({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
+    }
+
+    /**
+     * Stop execution of all currently running task and clean up all data that was left behind.
+     */
+    public close(): void {
+        this.isCancelled = true;
+        for (const worker of this.allWorkers) {
+            worker.terminate();
+        }
     }
 
     /**
@@ -209,6 +251,5 @@ class WorkerPool {
         }
     }
 }
-
 
 export { WorkerPool };

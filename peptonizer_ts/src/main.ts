@@ -32,6 +32,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
           <div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
           <div>Processing...</div>
           <div id="progress-view" style="display: flex;"></div>
+          <button id="cancel-button">Cancel</button>
       </div>
       <div id="result-view" hidden>
           <h2>Final output</h2>
@@ -110,6 +111,10 @@ class ProgressListener implements PeptonizerProgressListener {
         console.log("Peptonizer finished!");
     }
 
+    peptonizerCancelled() {
+        console.log("Peptonizer cancelled!");
+    }
+
     taskStarted(parameterset: PeptonizerParameterSet, workerId: number) {
         console.log(
             `Started new Peptonizer task on worker ${workerId} with parameters α = ${parameterset.alpha}, β = ${parameterset.beta} and γ = ${parameterset.prior}`
@@ -152,6 +157,7 @@ const startToPeptonize = async function() {
     const resultView: HTMLElement = document.getElementById("result-view")!;
     const inputElement: HTMLElement = document.getElementById("inputs")!;
     const loadingSpinner: HTMLElement = document.getElementById("loading-spinner")!;
+    const cancelButton: HTMLElement = document.getElementById("cancel-button")!;
 
     resultView.hidden = true;
     inputElement.hidden = true;
@@ -165,6 +171,11 @@ const startToPeptonize = async function() {
 
     const peptonizer = new Peptonizer();
 
+    cancelButton.addEventListener("click", async () => {
+        await peptonizer.cancel();
+        console.log("Cancellation finished...");
+    });
+
     const [peptidesScores, peptidesCounts] = PeptonizerInputParser.parse(fileContents);
 
     const peptonizerResult = await peptonizer.peptonize(
@@ -173,11 +184,17 @@ const startToPeptonize = async function() {
         alphas,
         betas,
         priors,
+        "genus",
+        50,
         new ProgressListener(document.getElementById("progress-view")!, 2)
     );
 
     const end = new Date().getTime();
-    console.log(`Peptonizer took ${(end - start) / 1000}s.`)
+    console.log(`Peptonizer took ${(end - start) / 1000}s.`);
+
+    if (!peptonizerResult) {
+        return;
+    }
 
     // Extract entries from the Map, format values, and sort them
     const entries = Array.from(peptonizerResult.entries()).map(

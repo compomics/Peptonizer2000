@@ -28,6 +28,11 @@ interface PeptonizerProgressListener {
     peptonizerFinished(): void;
 
     /**
+     * This function is called when execution of the peptonizer was successfully cancelled.
+     */
+    peptonizerCancelled(): void;
+
+    /**
      * Is called whenever the Peptonizer starts tuning a new set of parameters. This parameter set is one of the sets
      * that was already announced by the peptonizerStarts method prior to calling this function.
      *
