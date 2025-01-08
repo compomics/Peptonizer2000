@@ -45,15 +45,15 @@ mod wasm {
     #[wasm_bindgen]
     pub fn run_belief_propagation_wasm(
         graph: String,
-        alpha: f32,
-        beta: f32,
+        alpha: f64,
+        beta: f64,
         regularized: bool,
-        prior: f32,
+        prior: f64,
         max_iter: Option<i32>,
-        tol: Option<f32>
+        tol: Option<f64>
     ) -> String {
         let max_iter: i32 = max_iter.unwrap_or(10000);
-        let tol: f32 = tol.unwrap_or(0.006);
+        let tol: f64 = tol.unwrap_or(0.006);
         
         run_belief_propagation(graph, alpha, beta, regularized, prior, max_iter, tol)
     }
