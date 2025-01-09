@@ -8,7 +8,7 @@ mod http_client;
 mod random;
 mod weight_taxa;
 mod zero_lookahead_belief_propagation;
-mod factor_graph_node;
+mod node;
 mod factor_graph;
 
 #[cfg(target_arch = "wasm32")]

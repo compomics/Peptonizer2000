@@ -1,37 +1,52 @@
-use petgraph::graph::{Graph, NodeIndex, EdgeIndex};
-use petgraph::visit::{Dfs, EdgeRef};
-use petgraph::Undirected;
-use crate::factor_graph_node::{Factor, Node};
+use crate::node::{Factor, Node};
 use minidom::Element;
 use std::collections::{HashMap, HashSet};
 use crate::utils::log;
 use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone)]
-pub struct EdgeData {
+pub struct Edge {
+    id: i32,
+    node1_id: i32,
+    node2_id: i32,
     message_length: Option<i32>
+}
+
+impl Edge {
+
+    pub fn get_id(&self) -> i32 {
+        self.id
+    }
+
+    pub fn get_nodes(&self) -> (i32, i32) {
+        (self.node1_id, self.node2_id)
+    }
+
+    pub fn get_message_length(&self) -> Option<i32> {
+        self.message_length
+    }
 }
 
 #[derive(Debug)]
 pub struct CTFactorGraph {
-    graph: Graph::<Node, EdgeData, Undirected>,
-    node_map: HashMap<String, NodeIndex>
+    nodes: Vec<Node>,
+    edges: Vec<Edge>,
 }
 
 impl CTFactorGraph {
-    pub fn to_string(&self) -> String {
-        serde_json::to_string_pretty(&self.graph).unwrap()
-    }
 
     pub fn add_node_categories(&self, node_categories: &mut HashMap<String, String>) {
-        for node_index in self.graph.node_indices() {
-            let node: &Node = self.graph.node_weight(node_index).unwrap();
-            node_categories.insert(node.id().to_string(), node.category().to_string());
+        for node in &self.nodes {
+            node_categories.insert(node.get_name().to_string(), node.category().to_string());
         }
-    }
+    } 
 
     pub fn node_count(&self) -> usize {
-        self.graph.node_count()
+        self.nodes.len()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
     }
 
     fn parse_edge(edge: &Element) -> Result<(String, String), String> {
@@ -43,204 +58,219 @@ impl CTFactorGraph {
     
     // Method to parse a GraphML string into the graph
     pub fn from_graphml(graphml_str: &str) -> Result<CTFactorGraph, String> {
-        let mut graph = Graph::<Node, EdgeData, Undirected>::new_undirected();
-        let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
+        let mut nodes: Vec<Node> = Vec::new();
+        let mut edges: Vec<Edge> = Vec::new();
+        let mut node_map: HashMap<String, i32> = HashMap::new();
     
         let root: Element = graphml_str.parse().unwrap();
-    
+        
+        let mut next_node_id = 0;
+        let mut next_edge_id = 0;
         for graph_xml in root.children().filter(|n| n.name() == "graph") {
             for node_xml in graph_xml.children().filter(|n| n.name() == "node") {
-                let node: Node = Node::parse_node(node_xml).unwrap();
-    
-                let node_id: String = node.id().to_string();
-                let node_index: NodeIndex = graph.add_node(node);
-                node_map.insert(node_id, node_index);
+                let node: Node = Node::parse_node(node_xml, next_node_id).unwrap();
+                let node_name: String = node.get_name().to_string();
+                node_map.insert(node_name, next_node_id);
+                next_node_id += 1;
+
+                nodes.push(node);
             }
     
             for edge_xml in graph_xml.children().filter(|n| n.name() == "edge") {
                 let (source, target) = Self::parse_edge(edge_xml).unwrap();
     
-                let source_idx: NodeIndex = *node_map.get(&source).unwrap();
-                let target_idx: NodeIndex = *node_map.get(&target).unwrap();
-                let edge_data: EdgeData = EdgeData { message_length: None };
+                let node1_id: i32 = *node_map.get(&source).unwrap();
+                let node2_id: i32 = *node_map.get(&target).unwrap();
+                let edge: Edge = Edge { id: next_edge_id, node1_id, node2_id, message_length: None };
+                next_edge_id += 1;
     
-                graph.add_edge(source_idx, target_idx, edge_data);
+                let node1: &mut Node = &mut nodes[node1_id as usize];
+                node1.add_incident_edge(edge.get_id());
+                let node2: &mut Node = &mut nodes[node2_id as usize];
+                node2.add_incident_edge(edge.get_id());
+                edges.push(edge);
             }
         }
     
-        Ok( CTFactorGraph { graph, node_map })
+        Ok( CTFactorGraph { nodes, edges })
     }
 
     pub fn fill_in_priors(&mut self, prior: f64) {
-        for node_index in self.graph.node_indices() {
-            let node: &mut Node = self.graph.node_weight_mut(node_index).unwrap();
-
-            if let Node::TaxonNode { id, .. } = &node {
-                *node = Node::TaxonNode { id: id.to_string(), initial_belief_0: 1.0 - prior, initial_belief_1: prior };
-            }
+        for node in &mut self.nodes {
+            node.fill_in_prior(prior);
         }
     }
 
     pub fn fill_in_factors(&mut self, alpha: f64, beta: f64, regularized: bool) {
-        for node_index in self.graph.node_indices() {
-            let node: &mut Node = self.graph.node_weight_mut(node_index).unwrap();
-
-            if let Node::FactorNode { id, parent_number, .. } = &node {
-                let degree: i32 = *parent_number;
-
-                let mut cpd_array: Vec<[f64; 2]> = Vec::with_capacity(degree as usize + 1);
-                let mut cpd_array_regularized = cpd_array.clone();
-                let exponent_array: Vec<i32> = (0..=degree).collect();
-                let divide_array: Vec<f64> = std::iter::once(1i32).chain(1..=degree).map(|x| x as f64).collect();
-                
-                // regularize cpd priors to penalize higher number of parents
-                // log domain to avoid underflow
-                let mut cpd_sum: f64 = 0.0;
-                let mut cpd_regularized_sum: f64 = 0.0;
-                for (i, exp) in exponent_array.iter().enumerate() {
-                    let cpd_0 = (1.0 - alpha).powi(*exp) * (1.0 - beta);
-                    let cpd_1 = 1.0 - cpd_0;
-                    cpd_sum += cpd_0 + cpd_1;
-                    cpd_array.push([cpd_0, cpd_1]);
-
-                    let cpd_regularized_0 = (cpd_0.powi(*exp) * (1.0 - beta)) / divide_array[i];
-                    let cpd_regularized_1 = 1.0 - cpd_regularized_0;
-                    cpd_regularized_sum += cpd_regularized_0 + cpd_regularized_1;
-                    cpd_array_regularized.push([cpd_regularized_0, cpd_regularized_1]);
-                }
-
-                // Normalize arrays (assuming normalize and avoid_underflow are implemented)
-                Self::normalize_cpd(&mut cpd_array, cpd_sum, false);
-                Self::normalize_cpd(&mut cpd_array_regularized, cpd_regularized_sum, true);
-                
-                // Create factor
-                let factor_to_add = if regularized {
-                    Factor {
-                        array: cpd_array_regularized,
-                        array_labels: vec![format!("placeholder"), format!("{}0", node_index.index()), format!("{}1", node_index.index())],
-                    }
-                } else {
-                    Factor {
-                        array: cpd_array,
-                        array_labels : vec![format!("placeholder"), format!("{}0", node_index.index()), format!("{}1", node_index.index())],
-                    }
-                };
-                
-                // Add factor to the node's attributes
-                *node = Node::FactorNode { id: id.to_string(), parent_number: *parent_number, initial_belief: factor_to_add };
-            }
+        for node in &mut self.nodes {
+            node.fill_in_factor(alpha, beta, regularized);
         }
     }
 
-    fn normalize_cpd(arr: &mut Vec<[f64; 2]>, sum: f64, avoid_underflow: bool) {
-        for cpd in arr.iter_mut() {
-            cpd[0] /= sum;
-            cpd[1] /= sum;
-    
-            if avoid_underflow {
-                if cpd[0] < 1e-30 {
-                    cpd[0] = 1e-30;
-                }
-                if cpd[1] < 1e-30 {
-                    cpd[1] = 1e-30;
-                }
-            }
+    pub fn get_neighbors(&self, node: &Node) -> Vec<i32> {
+        let mut neighbors = Vec::with_capacity(node.neighbors_count() as usize);
+        for edge_id in node.get_incident_edges() {
+            let (node1_id, node2_id) = self.edges[*edge_id as usize].get_nodes();
+            let neighbor: i32 = if node1_id == node.get_id() { node2_id } else { node1_id };
+            neighbors.push(neighbor);
         }
+        
+        neighbors
     }
 
     pub fn add_ct_nodes(&mut self) {
         // When creating the CTGraph and not just reading from a previously saved graph format, use this function to add the CT nodes
         
-        let mut edges_to_add: Vec<(NodeIndex, NodeIndex, EdgeData)> = Vec::new();
-        let mut edges_to_remove: Vec<(NodeIndex, NodeIndex)> = Vec::new();
+        let mut edges_to_add: Vec<Edge> = Vec::new();
+        let mut edges_to_remove: HashSet<(i32, i32)> = HashSet::new();
+        let mut nodes_to_add: Vec<Node> = Vec::new();
 
-        for node_index in self.graph.node_indices() {
-            let node: &Node = self.graph.node_weight(node_index).unwrap();
+        // Add nodes and keep track of edges to add/remove
+        let mut next_edge_id: i32 = self.edges.len() as i32;
+        for node in &self.nodes {
+            if node.is_factor_node() {
+                if node.neighbors_count() > 2 {
 
-            if let Node::FactorNode { .. } = &node {
-                if self.graph.neighbors(node_index).count() > 2 {
-
-                    let mut prot_ids: Vec<String> = Vec::new();
-                    let mut prot_list: Vec<NodeIndex> = Vec::new();
-                    for neighbor_index in self.graph.neighbors(node_index) {
-
-                        let neighbor: &Node = self.graph.node_weight(neighbor_index).unwrap();
-                        if let Node::FactorNode { id, .. } = &neighbor {
-                            prot_list.push(neighbor_index);
-                            prot_ids.push(id.to_string());
+                    let mut prot_names: Vec<String> = Vec::new();
+                    let mut prot_ids: Vec<i32> = Vec::new();
+                    for neighbor_id in self.get_neighbors(node) {
+                        let neighbor: &Node = &self.nodes[neighbor_id as usize];
+                        if neighbor.is_factor_node() {
+                            prot_ids.push(neighbor_id);
+                            prot_names.push(neighbor.get_name().to_string());
                         }
                     }
 
-                    let node_id = prot_ids.join(" ");
-                    let new_node = Node::ConvolutionTreeNode { id: node_id.clone(), number_of_parents: prot_list.len() as i32 };
-                    let new_node_index: NodeIndex = self.graph.add_node(new_node);
-                    self.node_map.insert(node_id, new_node_index);
+                    let new_node_name = prot_names.join(" ");
+                    let new_node_id: i32 = self.nodes.len() as i32;
+                    let new_node = Node::new_convolution_node(new_node_id, new_node_name, prot_ids.len() as i32);
+                    nodes_to_add.push(new_node);
 
-                    let edge_data = EdgeData { message_length: Some(prot_list.len() as i32 + 1) };
-                    edges_to_add.push((new_node_index, node_index, edge_data));
-                    for neighbor in prot_list {
-                        let edge_data = EdgeData { message_length: None };
-                        edges_to_add.push((new_node_index, neighbor, edge_data));
-                        edges_to_remove.push((node_index, neighbor));
+                    let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: node.get_id(), message_length: Some(prot_ids.len() as i32 + 1) };
+                    next_edge_id += 1;
+                    edges_to_add.push(edge);
+                    for neighbor_id in prot_ids {
+                        let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: neighbor_id, message_length: None };
+                        next_edge_id += 1;
+                        edges_to_add.push(edge);
+                        edges_to_remove.insert((node.get_id(), neighbor_id));
+                        edges_to_remove.insert((neighbor_id, node.get_id()));
                     }
                 }
                 
             }
         }
 
-        for (node1, node2, edge_data) in edges_to_add {
-            self.graph.add_edge(node1, node2, edge_data);
+        // Remove edges
+        let mut new_edges: Vec<Edge> = Vec::with_capacity(self.edges.len() + edges_to_add.len() - edges_to_remove.len());
+        let mut next_edge_id = 0;
+        for edge in &self.edges {
+            if ! edges_to_remove.contains(&(edge.node1_id, edge.node2_id)) {
+                let mut new_edge = edge.clone();
+                new_edge.id = next_edge_id;
+                next_edge_id += 1;
+                new_edges.push(new_edge);
+            }
+        }
+        // Add new edges
+        for edge in edges_to_add {
+            let mut new_edge = edge.clone();
+            new_edge.id = next_edge_id;
+            next_edge_id += 1;
+            new_edges.push(new_edge);
         }
 
-        for (node1, node2) in edges_to_remove  {
-            let edge_id: EdgeIndex = self.graph.find_edge(node1, node2).unwrap();
-            self.graph.remove_edge(edge_id);
+        // Update the incident edges in the nodes
+        let mut new_nodes: Vec<Node> = Vec::with_capacity(self.nodes.len() + nodes_to_add.len());
+        for node in &self.nodes {
+            new_nodes.push(Node::new(node.get_id(), node.get_name().to_string(), node.get_subtype().clone()));
         }
+        for node in nodes_to_add {
+            new_nodes.push(node);
+        }
+        for edge in &new_edges {
+            let (node1_id, node2_id) = edge.get_nodes();
+            new_nodes[node1_id as usize].add_incident_edge(edge.get_id());
+            new_nodes[node2_id as usize].add_incident_edge(edge.get_id());
+        }
+
+        self.edges = new_edges;
     }
 
     /// Finds the connected components in an undirected graph and returns a Vec of Vecs containing nodes in each component.
     pub fn connected_components(&self) -> Vec<Self> {
-        let mut visited: HashSet<NodeIndex> = HashSet::new();
+        let mut visited: HashSet<i32> = HashSet::new();
         let mut components: Vec<Self> = Vec::new();
 
-        for start_node in self.graph.node_indices() {
-            if !visited.contains(&start_node) {
-                let mut component_nodes: HashSet<NodeIndex> = HashSet::new();
-                let mut old_to_new_nodes: HashMap<NodeIndex, NodeIndex> = HashMap::new();
+        for start_node in &self.nodes {
+            if !visited.contains(&start_node.get_id()) {
+                let mut component_ids: Vec<i32> = Vec::new();
+                let mut old_to_new_nodes: HashMap<i32, i32> = HashMap::new();
 
-                let mut subgraph = Graph::<Node, EdgeData, Undirected>::new_undirected();
-                let mut node_map: HashMap<String, NodeIndex> = HashMap::new();
+                let mut new_nodes: Vec<Node> = Vec::new();
+                let mut new_edges: Vec<Edge> = Vec::new();
 
-                let node_weight: Node = self.graph[start_node].clone();
-                let new_node: NodeIndex = subgraph.add_node(node_weight.clone());
-                node_map.insert(node_weight.id().to_string(), new_node);
+                // Find ids of nodes to include in component
+                component_ids.push(start_node.get_id());
+                old_to_new_nodes.insert(start_node.get_id(), 0);
+                self.find_component_rec(start_node.get_id(), &mut component_ids, &mut old_to_new_nodes, &mut visited);
 
-                let mut dfs = Dfs::new(&self.graph, start_node);
-                while let Some(node) = dfs.next(&self.graph) {
-                    if visited.insert(node) {
-                        component_nodes.insert(node);
+                // Create new nodes
+                for node_id in &component_ids {
+                    let node = self.nodes[*node_id as usize].copy_with_id(old_to_new_nodes[&node_id]);
+                    new_nodes.push(node);
+                }
 
-                        let node_weight: Node = self.graph[node].clone();
-                        let new_node: NodeIndex = subgraph.add_node(node_weight.clone());
-                        node_map.insert(node_weight.id().to_string(), new_node);
+                // Select edges to keep and update the node ids
+                let mut next_edge_id: i32 = 0;
+                let mut component_edge_ids: HashSet<i32> = HashSet::new();
+                let mut old_to_new_edges: HashMap<i32, i32> = HashMap::new();
+                for edge in &self.edges {
 
-                        old_to_new_nodes.insert(node, new_node);
+                    let (source, target): (i32, i32) = edge.get_nodes();
+                    if component_ids.contains(&source) && component_ids.contains(&target) {
+
+                        let (new_source, new_target): (i32, i32) = (old_to_new_nodes[&source], old_to_new_nodes[&target]);
+                        let new_edge = Edge { id: next_edge_id, node1_id: new_source, node2_id: new_target, message_length: edge.get_message_length() };
+                        next_edge_id += 1;
+
+                        component_edge_ids.insert(edge.get_id());
+                        old_to_new_edges.insert(edge.get_id(), new_edge.get_id());
+
+                        new_edges.push(new_edge);
                     }
                 }
 
-                for edge in self.graph.edge_references() {
-                    let (source, target): (NodeIndex, NodeIndex) = (edge.source(), edge.target());
-                    if component_nodes.contains(&source) && component_nodes.contains(&target) {
-                        let weight = edge.weight().clone();
-                        subgraph.add_edge(old_to_new_nodes[&source], old_to_new_nodes[&target], weight);
-                    }
+                // Update edge ids of incident edges
+                for node in &mut new_nodes {
+                    let new_incident_edges: Vec<i32> = node.get_incident_edges().into_iter().filter(|e| component_edge_ids.contains(e)).map(|e| old_to_new_edges[e]).collect();
+                    node.set_incident_edges(new_incident_edges);
                 }
 
-                let factor_subgraph = Self { graph: subgraph, node_map };
-                components.push(factor_subgraph);
+                // Create graph and add to components
+                let subgraph = Self { nodes: new_nodes, edges: new_edges };
+                components.push(subgraph);
             }
         }
 
         components
+    }
+
+    fn find_component_rec(
+        &self, 
+        start_id: i32, 
+        component_ids: &mut Vec<i32>, 
+        old_to_new_nodes: &mut HashMap<i32, i32>, 
+        visited: &mut HashSet<i32>
+    ) {
+        let start_node: &Node = &self.nodes[start_id as usize];
+        for neighbor_id in self.get_neighbors(&start_node) {
+            if visited.insert(neighbor_id) {
+                let next_id: i32 = component_ids.len() as i32;
+                component_ids.push(neighbor_id);
+                old_to_new_nodes.insert(neighbor_id, next_id);
+                self.find_component_rec(neighbor_id, component_ids, old_to_new_nodes, visited);                
+            }
+        }
     }
 }

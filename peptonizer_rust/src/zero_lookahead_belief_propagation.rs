@@ -1,6 +1,6 @@
 use crate::factor_graph::CTFactorGraph;
 use std::collections::HashMap;
-
+use crate::utils::log;
 
 /// Performs bayesian inference through loopy belief propagation, returns dictionary {variable:posterior_probability}
 ///
@@ -45,11 +45,14 @@ pub fn run_belief_propagation(
 
     let ct_factor_graphs = ct_factor_graph.connected_components();
 
-    calibrate_all_subgraphs(
+    /*calibrate_all_subgraphs(
         ct_factor_graphs,
         max_iter,
         tol
-    );
+    );*/
+    for graph in ct_factor_graphs {
+        log(&format!("{} {}", graph.node_count(), graph.edge_count()));
+    }
 
     format!("Hello")
 }
