@@ -127,6 +127,7 @@ impl CTFactorGraph {
 
         // Add nodes and keep track of edges to add/remove
         let mut next_edge_id: i32 = self.edges.len() as i32;
+        let mut next_node_id: i32 = self.nodes.len() as i32;
         for node in &self.nodes {
             if node.is_factor_node() {
                 if node.neighbors_count() > 2 {
@@ -142,8 +143,9 @@ impl CTFactorGraph {
                     }
 
                     let new_node_name = prot_names.join(" ");
-                    let new_node_id: i32 = self.nodes.len() as i32;
+                    let new_node_id = next_node_id;
                     let new_node = Node::new_convolution_node(new_node_id, new_node_name, prot_ids.len() as i32);
+                    next_node_id += 1;
                     nodes_to_add.push(new_node);
 
                     let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: node.get_id(), message_length: Some(prot_ids.len() as i32 + 1) };
@@ -188,12 +190,14 @@ impl CTFactorGraph {
         for node in nodes_to_add {
             new_nodes.push(node);
         }
+        
         for edge in &new_edges {
             let (node1_id, node2_id) = edge.get_nodes();
             new_nodes[node1_id as usize].add_incident_edge(edge.get_id());
             new_nodes[node2_id as usize].add_incident_edge(edge.get_id());
         }
 
+        self.nodes = new_nodes;
         self.edges = new_edges;
     }
 
@@ -203,7 +207,7 @@ impl CTFactorGraph {
         let mut components: Vec<Self> = Vec::new();
 
         for start_node in &self.nodes {
-            if !visited.contains(&start_node.get_id()) {
+            if visited.insert(start_node.get_id()) {
                 let mut component_ids: Vec<i32> = Vec::new();
                 let mut old_to_new_nodes: HashMap<i32, i32> = HashMap::new();
 
@@ -214,6 +218,8 @@ impl CTFactorGraph {
                 component_ids.push(start_node.get_id());
                 old_to_new_nodes.insert(start_node.get_id(), 0);
                 self.find_component_rec(start_node.get_id(), &mut component_ids, &mut old_to_new_nodes, &mut visited);
+
+                // log(&format!("{}", component_ids.len())); = 24000
 
                 // Create new nodes
                 for node_id in &component_ids {
@@ -246,7 +252,8 @@ impl CTFactorGraph {
                     let new_incident_edges: Vec<i32> = node.get_incident_edges().into_iter().filter(|e| component_edge_ids.contains(e)).map(|e| old_to_new_edges[e]).collect();
                     node.set_incident_edges(new_incident_edges);
                 }
-
+                
+                log(&format!("{}", new_nodes.len()));
                 // Create graph and add to components
                 let subgraph = Self { nodes: new_nodes, edges: new_edges };
                 components.push(subgraph);
