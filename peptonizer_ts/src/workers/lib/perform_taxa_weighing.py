@@ -5,12 +5,13 @@ pep_scores = globals().get('peptides_scores')
 pep_counts = globals().get('peptides_counts')
 rank = globals().get('rank')
 taxa_in_graph = globals().get('taxa_in_graph')
+taxon_query = globals().get('taxon_query')
 
 
 # First retrieve the taxonomic information from Unipept
 unipept_responses = peptonizer.fetch_unipept_taxon_information(
     list(pep_scores.keys()),
-    "2",
+    taxon_query,
     rank,
     "file_unipept_taxon_information_log"
 )

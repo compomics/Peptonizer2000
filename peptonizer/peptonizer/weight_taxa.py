@@ -66,14 +66,20 @@ def compute_taxa_distribution(objects):
 
 def weighted_random_sample(objects, n):
     # Calculate weights based on the length of the taxa array
-    weights = [1 / len(obj['taxa']) if obj['taxa'] else 0 for obj in objects]
+    weights = np.array([1 / len(obj['taxa']) if obj['taxa'] else 0 for obj in objects])
 
     # Normalize weights
-    total_weight = sum(weights)
-    normalized_weights = [weight / total_weight for weight in weights]
+    total_weight = np.sum(weights)
+    if total_weight == 0:
+        raise ValueError("All objects have zero weight, cannot sample.")
 
-    # Sample n objects based on the normalized weights
-    sampled_objects = random.choices(objects, weights=normalized_weights, k=n)
+    normalized_weights = weights / total_weight
+
+    # Perform weighted sampling without replacement
+    sampled_indices = np.random.choice(len(objects), size=min(np.count_nonzero(normalized_weights), n), replace=False, p=normalized_weights)
+
+    # Retrieve sampled objects
+    sampled_objects = [objects[i] for i in sampled_indices]
 
     return sampled_objects
 
@@ -116,7 +122,7 @@ def perform_taxa_weighing(
 
     print("Started mapping all taxon ids to the specified rank...")
     unipept_responses = normalize_unipept_responses(unipept_responses, taxa_rank)
-    unipept_responses = weighted_random_sample(unipept_responses, 15000)
+    unipept_responses = weighted_random_sample(unipept_responses, 10000)
 
     print(f"Using {len(unipept_responses)} sequences as input...")
 
@@ -200,8 +206,6 @@ def perform_taxa_weighing(
         pass
 
     unipept_frame = unipept_frame.drop('taxa', axis=1)
-    # Also get rid of duplicate rows.
-    unipept_frame.drop_duplicates(inplace=True)
 
     if len(higher_taxid_weights.HigherTaxa) < 50:
         return unipept_frame, higher_taxid_weights

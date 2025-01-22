@@ -74,6 +74,7 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
     self.pyodide.globals.set('rank', data.rank);
     self.pyodide.globals.set('taxa_in_graph', data.taxaInGraph);
+    self.pyodide.globals.set('taxon_query', data.taxonQuery);
 
     // Fetch the Python code and execute it with Pyodide
     const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);

@@ -10,7 +10,7 @@ class Peptonizer {
     /**
      * Start the peptonizer. This function takes in a PSM-file that has been read in earlier (so no file paths here). The
      * PSMS including their intensities are then used as input to the Peptonizer-pipeline. This pipeline will finally
-     * return a Map in which NCBI taxon IDs are mapped onto their propabilities (as computed by the Peptonizer).
+     * return a Map in which NCBI taxon IDs are mapped onto their probabilities (as computed by the Peptonizer).
      *
      * @param peptidesScores Mapping between the peptide sequences that should be present in the peptonizer and a scoring
      * metric (derived from a prior search engine step) for each peptide.
@@ -21,7 +21,9 @@ class Peptonizer {
      * detecting a peptide at random.
      * @param priors An array of possible values for the gamma (or prior) parameter. Gamma indicates the prior probability
      * of a taxon being present.
-     * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference?
+     * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference.
+     * @param taxonQuery a list of NCBI IDs that should be used for filtering the taxa that are considered by the
+     * Peptonizer in its graph.
      * @param taxaInGraph How many taxa are being used in the graphical model?
      * @param progressListener Is called everytime the progress of the belief propagation algorithm has been updated.
      * @param workers The amount of Web Workers that can be spawned and used simultaneously to run the Peptonizer.
@@ -35,26 +37,12 @@ class Peptonizer {
         betas: number[],
         priors: number[],
         rank: string = "species",
+        taxonQuery: number[] = [1],
         taxaInGraph: number = 100,
         progressListener?: PeptonizerProgressListener,
         workers: number = 2
     ): Promise<PeptonizerResult | undefined> {
         this.workerPool = new WorkerPool(workers);
-
-        const taxonWeighingResult = await this.workerPool.performTaxaWeighing(
-            peptidesScores,
-            peptidesCounts,
-            rank,
-            taxaInGraph,
-        );
-
-        if (this.isCancelled) {
-            return;
-        }
-        const [sequenceScoresCsv, taxonWeightsCsv] = taxonWeighingResult;
-
-
-        const generatedGraph = await this.workerPool.generateGraph(sequenceScoresCsv);
 
         // Compute the total amount of tasks and which tasks to perform.
         const parameterSets: PeptonizerParameterSet[] = [];
@@ -73,6 +61,21 @@ class Peptonizer {
 
         // Notify any listeners that the Peptonizer did start running (and report which set of parameters will be tuned)
         progressListener?.peptonizerStarted(parameterSets.length, parameterSets);
+
+        const taxonWeighingResult = await this.workerPool.performTaxaWeighing(
+            peptidesScores,
+            peptidesCounts,
+            rank,
+            taxaInGraph,
+            taxonQuery
+        );
+
+        if (this.isCancelled) {
+            return;
+        }
+        const [sequenceScoresCsv, taxonWeightsCsv] = taxonWeighingResult;
+
+        const generatedGraph = await this.workerPool.generateGraph(sequenceScoresCsv);
 
         const pepgmPromises: Promise<PeptonizerResult>[] = [];
 

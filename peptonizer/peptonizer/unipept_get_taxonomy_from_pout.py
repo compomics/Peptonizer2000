@@ -5,7 +5,7 @@ from typing import Dict, List, Any
 from .request_manager import RequestManager
 from .taxon_manager import TaxonManager
 
-UNIPEPT_URL = "http://api.unipept.ugent.be"
+UNIPEPT_URL = "https://api.unipept.ugent.be"
 UNIPEPT_PEPT2FILTERED_ENDPOINT = "/mpa/pept2filtered.json"
 
 UNIPEPT_PEPTIDES_BATCH_SIZE = 2000

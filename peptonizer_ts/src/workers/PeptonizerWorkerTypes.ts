@@ -12,6 +12,7 @@ interface PerformTaxaWeighingTaskData {
     peptidesCounts: Map<string, number>;
     rank: string;
     taxaInGraph: number;
+    taxonQuery: string;
 }
 
 interface GenerateGraphTaskData {

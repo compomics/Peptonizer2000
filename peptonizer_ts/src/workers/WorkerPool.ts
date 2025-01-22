@@ -90,6 +90,7 @@ class WorkerPool {
      * @param peptidesCounts Mapping between peptide sequences and their occurrences in the input file.
      * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference?
      * @param taxaInGraph How many taxa are being used in the graphical model?
+     * @param taxonQuery Determines which taxa should be taken into account for the Peptonizer inference.
      * @return A CSV-representation of a dataframe with taxon weights.
      */
     public async performTaxaWeighing(
@@ -97,6 +98,7 @@ class WorkerPool {
         peptidesCounts: Map<string, number>,
         rank: string,
         taxaInGraph: number,
+        taxonQuery: number[]
     ): Promise<[string, string]> {
         if (this.isCancelled) {
             throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
@@ -106,7 +108,8 @@ class WorkerPool {
             peptidesScores,
             peptidesCounts,
             rank,
-            taxaInGraph
+            taxaInGraph,
+            taxonQuery: taxonQuery.join(",")
         };
 
         return await this.queue.push({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });

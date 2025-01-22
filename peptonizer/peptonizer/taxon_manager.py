@@ -7,7 +7,7 @@ from sys import getsizeof
 from .request_manager import RequestManager
 
 class TaxonManager:
-    UNIPEPT_URL = "http://api.unipept.ugent.be"
+    UNIPEPT_URL = "https://api.unipept.ugent.be"
     UNIPEPT_TAXONOMY_ENDPOINT = "/api/v2/taxonomy.json"
 
     TAXONOMY_ENDPOINT_BATCH_SIZE = 100
