@@ -112,7 +112,7 @@ class WorkerPool {
             taxonQuery: taxonQuery.join(",")
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
     }
 
     public async generateGraph(
@@ -126,7 +126,7 @@ class WorkerPool {
             taxaWeightsCsv
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.GENERATE_GRAPH, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.GENERATE_GRAPH, input: eventData }, progressListener: undefined });
     }
 
     public async executePepgm(
@@ -147,7 +147,7 @@ class WorkerPool {
             prior
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.EXECUTE_PEPGM, input: eventData }, progressListener });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.EXECUTE_PEPGM, input: eventData }, progressListener });
     }
 
     public async clusterTaxa(
@@ -165,7 +165,7 @@ class WorkerPool {
             similarityThreshold
         }
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.CLUSTER_TAXA, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.CLUSTER_TAXA, input: eventData }, progressListener: undefined });
     }
 
     public async computeGoodness(
@@ -181,7 +181,7 @@ class WorkerPool {
             peptonizerResults
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
     }
 
     /**
@@ -189,8 +189,9 @@ class WorkerPool {
      */
     public close(): void {
         this.isCancelled = true;
-        for (const worker of this.allWorkers) {
-            worker.terminate();
+        while (this.allWorkers.length > 0) {
+            const worker = this.allWorkers.pop();
+            worker?.terminate();
         }
     }
 

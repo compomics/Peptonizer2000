@@ -22,7 +22,7 @@ interface PeptonizerProgressListener {
     peptonizerStarted(totalTasks: number, taskSpecifications: PeptonizerParameterSet[]): void;
 
     /**
-     * This function is called whenever the whole Peptonizer pipeline has finished all pending tasks and the final\
+     * This function is called whenever the whole Peptonizer pipeline has finished all pending tasks and the final
      * results have become available.
      */
     peptonizerFinished(): void;

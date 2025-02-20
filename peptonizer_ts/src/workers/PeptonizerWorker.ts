@@ -1,3 +1,12 @@
+/**
+ * This worker contains all instructions to run the different steps that are required by the Peptonizer. All of these
+ * functions are implemented in the same Worker instance and are loaded at the same time into memory instead of into
+ * smaller separate workers. Since all of these workers require a running Pyodide instance, it's more efficient
+ * (memory-wise) to bundle all Python functionality into one bigger worker.
+ *
+ * @author Pieter Verschaffelt
+ */
+
 import {loadPyodide, PyodideInterface} from 'pyodide';
 import peptonizerWhlBase64 from "./lib/peptonizer-0.1-py3-none-any.base64.whl?raw";
 import {
@@ -189,8 +198,6 @@ self.onmessage = async (event: MessageEvent<InputEventData>): Promise<void> => {
             output
         });
     } catch (error: any) {
-        console.error(error);
-
         self.postMessage({
             resultType: ResultType.FAILED,
             workerId: event.data.workerId,
