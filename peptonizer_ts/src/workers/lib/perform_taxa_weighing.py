@@ -7,9 +7,6 @@ rank = globals().get('rank')
 taxa_in_graph = globals().get('taxa_in_graph')
 taxon_query = globals().get('taxon_query')
 
-hello("x")
-x  = 8/0
-
 # First retrieve the taxonomic information from Unipept
 unipept_responses = peptonizer.fetch_unipept_taxon_information(
     list(pep_scores.keys()),
