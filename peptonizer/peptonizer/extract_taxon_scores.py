@@ -4,7 +4,7 @@ from os import linesep
 from typing import Dict
 from io import StringIO
 
-from .taxon_manager import TaxonManager
+from .unipept_communicator import UnipeptCommunicator
 
 
 def parse_taxon_scores(csv_content: str) -> Dict[int, float]:
@@ -53,7 +53,9 @@ def extract_taxon_scores(csv_content: str) -> Dict[str, float]:
     # read csv using pandas
     taxon_scores = parse_taxon_scores(csv_content)
 
-    name_mapping = TaxonManager.get_names_for_taxa([int(id) for id in taxon_scores.keys()])
+    unipept_communicator = UnipeptCommunicator()
+
+    name_mapping = unipept_communicator.get_names_for_taxa([int(id) for id in taxon_scores.keys()])
 
     taxon_score_dict = dict()
 
@@ -85,7 +87,9 @@ def clean_csv(csv_content: str) -> str:
 
     scores = tax_ids["score"].to_list()
 
-    name_mapping = TaxonManager.get_names_for_taxa([int(id) for id in tax_ids["ID"]])
+    unipept_communicator = UnipeptCommunicator()
+
+    name_mapping = unipept_communicator.get_names_for_taxa([int(id) for id in tax_ids["ID"]])
 
     lines = [
         ",".join(["taxon_name", "taxon_id", "score"])

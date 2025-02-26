@@ -8,11 +8,11 @@ taxa_in_graph = globals().get('taxa_in_graph')
 taxon_query = globals().get('taxon_query')
 
 # First retrieve the taxonomic information from Unipept
-unipept_responses = peptonizer.fetch_unipept_taxon_information(
+unipept_responses = peptonizer.fetch_peptides_and_filter_taxa(
     list(pep_scores.keys()),
     taxon_query,
     rank,
-    "file_unipept_taxon_information_log"
+    peptonizer.UnipeptCommunicator()
 )
 
 # Infer the taxa weights for these peptide sequences
@@ -21,6 +21,7 @@ sequence_scores_df, taxa_weights_df = peptonizer.perform_taxa_weighing(
     pep_scores,
     pep_counts,
     taxa_in_graph,
+    peptonizer.UnipeptCommunicator(),
     rank
 )
 

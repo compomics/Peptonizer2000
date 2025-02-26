@@ -1,7 +1,7 @@
 import argparse
 import json
 
-from peptonizer.peptonizer import parse_peptide_tsv, fetch_peptides_and_filter_taxa
+from peptonizer.peptonizer import parse_peptide_tsv, fetch_peptides_and_filter_taxa, UnipeptCommunicator
 
 
 parser = argparse.ArgumentParser()
@@ -48,7 +48,8 @@ pep_score, pep_psm_counts = parse_peptide_tsv(file_contents)
 unipept_response = fetch_peptides_and_filter_taxa(
     list(pep_score.keys()),
     args.taxonomy_query,
-    args.taxon_rank
+    args.taxon_rank,
+    UnipeptCommunicator()
 )
 
 with open(args.unipept_response_file, "w") as f:

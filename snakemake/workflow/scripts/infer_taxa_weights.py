@@ -2,7 +2,7 @@ import argparse
 import gzip
 import json
 
-from peptonizer.peptonizer import perform_taxa_weighing, parse_peptide_tsv
+from peptonizer.peptonizer import perform_taxa_weighing, parse_peptide_tsv, UnipeptCommunicator
 
 parser = argparse.ArgumentParser()
 
@@ -43,9 +43,7 @@ parser.add_argument(
     help="Input: path to percolator (ms2rescore) '.pout' file.",
 )
 
-
 args = parser.parse_args()
-
 
 with open(args.pout_file, 'rt', encoding='utf-8') as file:
     file_contents = file.read()
@@ -63,6 +61,7 @@ df, weights = perform_taxa_weighing(
     pep_score,
     pep_psm_counts,
     args.number_of_taxa,
+    UnipeptCommunicator(),
     args.taxon_rank
 )
 

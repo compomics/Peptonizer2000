@@ -26,7 +26,7 @@ rule GetTaxonomyFromUnipept:
     input:
         config['input_file']
     output:
-        path.join(data_dir, 'unipept_responses.json')
+        path.join(data_dir, 'peptide_taxa.json')
     log:
         path.join(log_dir, 'get_taxonomy_from_unipept.log')
     params:
@@ -45,7 +45,7 @@ rule GetTaxonomyFromUnipept:
 rule WeightTaxa:
     input:
         config['input_file'],
-        path.join(data_dir, 'unipept_responses.json')
+        path.join(data_dir, 'peptide_taxa.json')
     output:
         path.join(data_dir, 'sequence_scores_dataframe.csv'),
         path.join(data_dir, 'taxa_weights_dataframe.csv')

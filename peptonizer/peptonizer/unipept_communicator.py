@@ -1,6 +1,7 @@
 from typing import Dict, List
 
-from peptonizer.peptonizer.request_manager import RequestManager
+from .ncbi_ranks import NCBI_RANKS
+from .request_manager import RequestManager
 
 class CommunicationException(Exception):
     pass
@@ -22,36 +23,6 @@ class UnipeptCommunicator:
     UNIPEPT_PEPTIDES_BATCH_SIZE = 2000
     TAXONOMY_ENDPOINT_BATCH_SIZE = 100
 
-    NCBI_RANKS = [
-        "superkingdom",
-        "kingdom",
-        "subkingdom",
-        "superphylum",
-        "phylum",
-        "subphylum",
-        "superclass",
-        "class",
-        "subclass",
-        "superorder",
-        "order",
-        "suborder",
-        "infraorder",
-        "superfamily",
-        "family",
-        "subfamily",
-        "tribe",
-        "subtribe",
-        "genus",
-        "subgenus",
-        "species_group",
-        "species_subgroup",
-        "species",
-        "subspecies",
-        "strain",
-        "varietas",
-        "forma"
-    ]
-
     # Static cache to store previously retrieved lineages
     lineage_cache = {}
 
@@ -62,6 +33,10 @@ class UnipeptCommunicator:
         peptide.
 
         :param peptides: List of peptide sequences for which all associated taxa should be queried.
+
+        :raises CommunicationException: If the Unipept API server responds with an error, or if something goes wrong
+            with the network.
+
         :return: Dictionary mapping each peptide from the input list onto all of its associated taxa IDs.
         """
         url = UnipeptCommunicator.UNIPEPT_URL + UnipeptCommunicator.UNIPEPT_PEPT2FILTERED_ENDPOINT
@@ -100,6 +75,10 @@ class UnipeptCommunicator:
             retrieved.
         :param descendants_rank: The maximum rank that each of the descendants should have in the NCBI taxonomy.
             All descendants that are defined at this rank or deeper are reported.
+
+        :raises CommunicationException: If the Unipept API server responds with an error, or if something goes wrong
+            with the network.
+
         :return: A list of taxon IDs that meet the given rank criteria.
         """
         url = UnipeptCommunicator.UNIPEPT_URL + UnipeptCommunicator.UNIPEPT_TAXONOMY_ENDPOINT
@@ -107,8 +86,8 @@ class UnipeptCommunicator:
 
         # We need to get all children at the requested level, AND at lower levels. That's what we're using the ranks array
         # for.
-        rank_idx = UnipeptCommunicator.NCBI_RANKS.index(descendants_rank)
-        descendants_ranks = UnipeptCommunicator.NCBI_RANKS[rank_idx:]
+        rank_idx = NCBI_RANKS.index(descendants_rank)
+        descendants_ranks = NCBI_RANKS[rank_idx:]
 
         # Split the target taxa into batches of 15
         for i in range(0, len(target_taxa), UnipeptCommunicator.TAXONOMY_ENDPOINT_BATCH_SIZE):
@@ -144,6 +123,10 @@ class UnipeptCommunicator:
         node at that rank, or None if no parent is defined for this taxon at that rank.
 
         :param target_taxa: A list of taxon IDs for which the lineage arrays need to be retrieved.
+
+        :raises CommunicationException: If the Unipept API server responds with an error, or if something goes wrong
+            with the network.
+
         :return: A dictionary that contains an entry for every taxon ID from the input, mapped onto its lineage array.
         """
         url = UnipeptCommunicator.UNIPEPT_URL + UnipeptCommunicator.UNIPEPT_TAXONOMY_ENDPOINT
@@ -170,7 +153,7 @@ class UnipeptCommunicator:
             if response.status_code == 200:
                 data = response.json()
                 for item in data:
-                    lineage = [item.get(rank + "_id") for rank in UnipeptCommunicator.NCBI_RANKS]
+                    lineage = [item.get(rank + "_id") for rank in NCBI_RANKS]
                     taxon_id = item["taxon_id"]
                     # Cache the retrieved lineage
                     self.lineage_cache[taxon_id] = lineage
@@ -188,6 +171,10 @@ class UnipeptCommunicator:
         Returns a mapping from taxon ID to taxon name for all taxa that have been provided to this function.
 
         :param target_taxa: A list of taxon IDs for which all corresponding taxon names should be retrieved.
+
+        :raises CommunicationException: If the Unipept API server responds with an error, or if something goes wrong
+            with the network.
+
         :return: A dictionary mapping taxon IDs to taxon names.
         """
         url = UnipeptCommunicator.UNIPEPT_URL + UnipeptCommunicator.UNIPEPT_TAXONOMY_ENDPOINT

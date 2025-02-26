@@ -1,32 +1,34 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import numpy as np
 import pandas as pd
 
-from .taxon_manager import TaxonManager
+from .unipept_communicator import UnipeptCommunicator
+from .ncbi_ranks import NCBI_RANKS
 
 
-def get_lineage_at_specified_rank(tax_ids: List[int], taxa_rank: str) -> List[int]:
+def get_lineage_at_specified_rank(
+        tax_ids: List[int],
+        taxa_rank: str,
+        lineages: Dict[int, List[int | None]]
+) -> List[int]:
     """
-    Returns the taxon ID of the specified rank in the lineage for all taxa ID given as argument.
+    Returns the taxon ID of the specified rank in the lineage for all taxa IDs given as arguments.
 
-    For example, given a taxon ID at strain level and "species" as value for the taxa_rank argument, this function
-    will return the taxon ID at species level for the input taxon ID.
+    For example, given a taxon ID at the strain level and "species" as the value for the `taxa_rank` argument,
+    this function will return the taxon ID at the species level for the input taxon ID.
 
-    Parameters
-    -----
-    tax_ids: [int]
-         List of taxon_ids to get the lineage of
-    taxa_rank:
-         Rank at which you want to pin the taxa
+    :param tax_ids: List of taxon IDs to get the lineage of.
+    :param taxa_rank: Rank at which you want to pin the taxa.
+    :param lineages: A dictionary mapping taxon IDs to their lineages. These can be retrieved from the Unipept API (not
+        by this function)
+
+    :return: List of taxon IDs at the specified rank for each input taxon ID.
     """
-
-    # Get the full lineage for all given taxon IDs from Unipept
-    lineages = TaxonManager.get_lineages_for_taxa(tax_ids)
 
     # Get the index of the NCBI rank that we're interested in. This index is required to extract the taxon IDs from the
     # correct place in the lineage.
-    rank_idx = TaxonManager.NCBI_RANKS.index(taxa_rank)
+    rank_idx = NCBI_RANKS.index(taxa_rank)
 
     return [lineages[tax][rank_idx] for tax in tax_ids]
 
@@ -66,7 +68,11 @@ def weighted_random_sample(peptide_taxa: Dict[str, List[int]], n: int) -> Dict[s
     return output
 
 
-def normalize_taxa(peptide_taxa: Dict[str, List[int]], taxa_rank: str):
+def normalize_taxa(
+        peptide_taxa: Dict[str, List[int]],
+        taxa_rank: str,
+        unipept_communicator: UnipeptCommunicator
+) -> Dict[str, List[int]]:
     """
     Map all taxon IDs that are found (as keys) in the given peptide_taxa dictionary to the parent or child at taxa_rank.
 
@@ -74,12 +80,18 @@ def normalize_taxa(peptide_taxa: Dict[str, List[int]], taxa_rank: str):
         peptide.
     :param taxa_rank: The NCBI taxon rank at which the taxon IDs should be mapped. Must be a valid NCBI rank that's
         supported by Unipept.
+    :param unipept_communicator: Object that performs all network communication with the Unipept API.
     :return: The same dictionary that was provided as input, but then with the modified taxa. The returned object is the
         same as the input object.
     """
+
+    # Retrieve the lineage data in larger batches to reduce the amount of requests that have to be made to Unipept
+    taxa_list = sum(peptide_taxa.values(), [])
+    lineages = unipept_communicator.get_lineages_for_taxa(taxa_list)
+
     # Map all taxa onto the rank specified by the user
     for (peptide, taxa) in peptide_taxa.items():
-        peptide_taxa[peptide] = list(set(get_lineage_at_specified_rank(taxa, taxa_rank)))
+        peptide_taxa[peptide] = list(set(get_lineage_at_specified_rank(taxa, taxa_rank, lineages)))
     return peptide_taxa
 
 
@@ -87,32 +99,29 @@ def perform_taxa_weighing(
     peptide_taxa: Dict[str, List[int]],
     pep_scores: Dict[str, float],
     pep_psm_counts: Dict[str, int],
-    max_taxa,
+    max_taxa: int,
+    unipept_communicator: UnipeptCommunicator,
     taxa_rank="species"
-):
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Weight inferred taxa based on their (1) degeneracy and (2) their proteome size.
+    Weight inferred taxa based on their (1) degeneracy and (2) proteome size.
 
-    Parameters
-    ----------
-    peptide_taxa: List[any]
-        Peptide counts that have already been processed by Unipept before.
-    pep_scores: Dict[str, Dict[str, float | int]]
-        Dictionary that maps each peptide string onto an object containing the score associated to this peptide and the
-        psm count.
-    max_taxa: int
-        Maximum number of taxa to include in the final graphical model.
-    taxa_rank: str
-        NCBI rank at which the Peptonizer analysis should be performed.
+    :param peptide_taxa: List of taxa associated with each peptide.
+    :param pep_scores: Scores associated with each peptide.
+    :param pep_psm_counts: PSM counts associated with each peptide.
+    :param max_taxa: Maximum number of taxa to include in the final graphical model.
+    :param unipept_communicator: Object that performs all network communication with the Unipept API.
+    :param taxa_rank: NCBI rank at which the Peptonizer analysis should be performed. Should be a rank that is
+        supported by Unipept.
 
-    Returns
-    -------
-    dataframe
-        Top scoring taxa
-
+    :return: Two dataframes:
+        1) a dataframe containing all peptide sequences mapped onto it's normalized taxa and the weight computed by this
+        function.
+        2) a dataframe containing each normalized taxon ID, it's scaled weight, and a column indicating if the taxon is
+        unique (i.e. associated to only one peptide) or not.
     """
     print("Started mapping all taxon ids to the specified rank...")
-    peptide_taxa = normalize_taxa(peptide_taxa, taxa_rank)
+    peptide_taxa = normalize_taxa(peptide_taxa, taxa_rank, unipept_communicator)
     peptide_taxa = weighted_random_sample(peptide_taxa, 10000)
 
     print(f"Using {len(peptide_taxa)} sequences as input...")
@@ -149,15 +158,11 @@ def perform_taxa_weighing(
         lambda row: row["taxa"], axis=1
     )
 
-    # unipept_frame.to_csv("higher_taxa_step.csv")
-
     # Divide the number of PSMs of a peptide by the number of taxa the peptide is associated with, exponentiated by 3
     print("Started dividing the number of PSMS of a peptide by the number the peptide is associated with...")
     unipept_frame["weight"] = unipept_frame["psms"].div(
         [len(element) ** 3 for element in unipept_frame["HigherTaxa"]]
     )
-
-    # unipept_frame.to_csv("weight_step.csv")
 
     mask = [len(element) == 1 for element in unipept_frame["HigherTaxa"]]
     unique_psm_taxa = set(i[0] for i in unipept_frame["HigherTaxa"][mask])
@@ -206,7 +211,8 @@ def perform_taxa_weighing(
     else:
         taxa_to_include = set(higher_taxid_weights["HigherTaxa"][0:max_taxa])
         taxa_to_include.update(higher_unique_psm_taxids)
+
         return (
             unipept_frame[unipept_frame["HigherTaxa"].isin(taxa_to_include)],
-            higher_taxid_weights,
+            higher_taxid_weights
         )
