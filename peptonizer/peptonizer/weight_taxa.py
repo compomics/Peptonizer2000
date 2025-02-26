@@ -1,34 +1,9 @@
-from collections import defaultdict
 from typing import List, Dict
 
-import random
 import numpy as np
 import pandas as pd
 
 from .taxon_manager import TaxonManager
-
-
-def get_peptide_count_per_tax_id(proteins_per_taxon):
-    """
-    Convert tab-separated taxon-protein counts to a dictionary.
-
-    Parameters
-    ----------
-    proteins_per_taxon: str,
-        Path to file that contains the counts.
-
-    """
-    protein_counts_per_taxid = {}
-
-    with open(proteins_per_taxon, "rb") as f:
-        for line in f:
-            # The file is encoded
-            line_str = line.decode("utf-8").strip()
-            # First column represents the TaxID, the second the count of peptides that are associated with that TaxID
-            taxid, count = map(int, line_str.split("\t"))
-            protein_counts_per_taxid[taxid] = int(count)
-
-    return protein_counts_per_taxid
 
 
 def get_lineage_at_specified_rank(tax_ids: List[int], taxa_rank: str) -> List[int]:
@@ -56,17 +31,19 @@ def get_lineage_at_specified_rank(tax_ids: List[int], taxa_rank: str) -> List[in
     return [lineages[tax][rank_idx] for tax in tax_ids]
 
 
-def compute_taxa_distribution(objects):
-    distribution = defaultdict(int)
-    for obj in objects:
-        taxa_length = len(obj['taxa'])
-        distribution[taxa_length] += 1
-    return dict(distribution)
+def weighted_random_sample(peptide_taxa: Dict[str, List[int]], n: int) -> Dict[str, List[int]]:
+    """
+    Randomly select n pairs from the provided peptide_taxa dictionary. The chance for each peptide to be selected,
+    depends on the amount of taxa that are associated to this peptide. The more taxa, the lower the information
+    content of this peptide, and the lower the chance of being selected.
 
+    :param peptide_taxa: A dictionary mapping peptide sequences onto the taxon IDs that they're associated with.
+    :param n: The amount of peptide-taxa pairs that should be selected from the provided peptide_taxa dictionary.
+    :return: A new peptide_taxa dictionary object containing only the n selected pairs.
+    """
 
-def weighted_random_sample(objects, n):
-    # Calculate weights based on the length of the taxa array
-    weights = np.array([1 / len(obj['taxa']) if obj['taxa'] else 0 for obj in objects])
+    # Calculate weights based on the length of the taxa array for each peptide
+    weights = np.array([1 / len(taxa) if taxa else 0 for taxa in peptide_taxa.values()])
 
     # Normalize weights
     total_weight = np.sum(weights)
@@ -75,24 +52,39 @@ def weighted_random_sample(objects, n):
 
     normalized_weights = weights / total_weight
 
-    # Perform weighted sampling without replacement
-    sampled_indices = np.random.choice(len(objects), size=min(np.count_nonzero(normalized_weights), n), replace=False, p=normalized_weights)
+    # Perform weighted sampling without replacement (so no items are selected more than once)
+    peptides = list(peptide_taxa.keys())
+    sampled_indices = np.random.choice(len(peptides), size=min(np.count_nonzero(normalized_weights), n), replace=False, p=normalized_weights)
+
+    output = dict()
 
     # Retrieve sampled objects
-    sampled_objects = [objects[i] for i in sampled_indices]
+    for sampled_index in sampled_indices:
+        sampled_peptide = peptides[sampled_index]
+        output[sampled_peptide] = peptide_taxa[sampled_peptide]
 
-    return sampled_objects
+    return output
 
 
-def normalize_unipept_responses(responses, taxa_rank):
+def normalize_taxa(peptide_taxa: Dict[str, List[int]], taxa_rank: str):
+    """
+    Map all taxon IDs that are found (as keys) in the given peptide_taxa dictionary to the parent or child at taxa_rank.
+
+    :param peptide_taxa: A dictionary that maps peptide sequences onto a list of taxon IDs that are associated to this
+        peptide.
+    :param taxa_rank: The NCBI taxon rank at which the taxon IDs should be mapped. Must be a valid NCBI rank that's
+        supported by Unipept.
+    :return: The same dictionary that was provided as input, but then with the modified taxa. The returned object is the
+        same as the input object.
+    """
     # Map all taxa onto the rank specified by the user
-    for response in responses:
-        response["taxa"] = list(set(get_lineage_at_specified_rank(response["taxa"], taxa_rank)))
-    return responses
+    for (peptide, taxa) in peptide_taxa.items():
+        peptide_taxa[peptide] = list(set(get_lineage_at_specified_rank(taxa, taxa_rank)))
+    return peptide_taxa
 
 
 def perform_taxa_weighing(
-    unipept_responses: List[any],
+    peptide_taxa: Dict[str, List[int]],
     pep_scores: Dict[str, float],
     pep_psm_counts: Dict[str, int],
     max_taxa,
@@ -100,9 +92,10 @@ def perform_taxa_weighing(
 ):
     """
     Weight inferred taxa based on their (1) degeneracy and (2) their proteome size.
+
     Parameters
     ----------
-    unipept_responses: List[any]
+    peptide_taxa: List[any]
         Peptide counts that have already been processed by Unipept before.
     pep_scores: Dict[str, Dict[str, float | int]]
         Dictionary that maps each peptide string onto an object containing the score associated to this peptide and the
@@ -118,18 +111,19 @@ def perform_taxa_weighing(
         Top scoring taxa
 
     """
-    print("Parsing Unipept responses from disk...")
-
     print("Started mapping all taxon ids to the specified rank...")
-    unipept_responses = normalize_unipept_responses(unipept_responses, taxa_rank)
-    unipept_responses = weighted_random_sample(unipept_responses, 10000)
+    peptide_taxa = normalize_taxa(peptide_taxa, taxa_rank)
+    peptide_taxa = weighted_random_sample(peptide_taxa, 10000)
 
-    print(f"Using {len(unipept_responses)} sequences as input...")
+    print(f"Using {len(peptide_taxa)} sequences as input...")
+
+    print("Unipept responses:")
+    print(peptide_taxa)
 
     # Convert a JSON object into a Pandas DataFrame
     # record_path Parameter is used to specify the path to the nested list or dictionary that you want to normalize
     print("Normalizing peptides and converting to dataframe...")
-    unipept_frame = pd.json_normalize(unipept_responses)
+    unipept_frame = pd.DataFrame(list(peptide_taxa.items()), columns=['sequence', 'taxa'])
 
     scores = unipept_frame["sequence"].map(pep_scores)
     scores.name = "score"
