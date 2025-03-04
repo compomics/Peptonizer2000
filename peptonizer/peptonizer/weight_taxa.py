@@ -56,7 +56,14 @@ def weighted_random_sample(peptide_taxa: Dict[str, List[int]], n: int) -> Dict[s
 
     # Perform weighted sampling without replacement (so no items are selected more than once)
     peptides = list(peptide_taxa.keys())
-    sampled_indices = np.random.choice(len(peptides), size=min(np.count_nonzero(normalized_weights), n), replace=False, p=normalized_weights)
+    # Fix the seed for the random generator such that we get reproducible results
+    rng = np.random.default_rng(1234)
+    sampled_indices = rng.choice(
+        len(peptides),
+        size=min(np.count_nonzero(normalized_weights), n),
+        replace=False,
+        p=normalized_weights
+    )
 
     output = dict()
 
@@ -86,8 +93,11 @@ def normalize_taxa(
     """
 
     # Retrieve the lineage data in larger batches to reduce the amount of requests that have to be made to Unipept
-    taxa_list = sum(peptide_taxa.values(), [])
-    lineages = unipept_communicator.get_lineages_for_taxa(taxa_list)
+    # Measure time for summing the peptide_taxa values
+    all_taxa = set()
+    for taxa in peptide_taxa.values():
+        all_taxa.update(taxa)
+    lineages = unipept_communicator.get_lineages_for_taxa(list(all_taxa))
 
     # Map all taxa onto the rank specified by the user
     for (peptide, taxa) in peptide_taxa.items():
@@ -125,9 +135,6 @@ def perform_taxa_weighing(
     peptide_taxa = weighted_random_sample(peptide_taxa, 10000)
 
     print(f"Using {len(peptide_taxa)} sequences as input...")
-
-    print("Unipept responses:")
-    print(peptide_taxa)
 
     # Convert a JSON object into a Pandas DataFrame
     # record_path Parameter is used to specify the path to the nested list or dictionary that you want to normalize

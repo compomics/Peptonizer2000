@@ -1,6 +1,5 @@
 # implementation of belief propagation on a peptide-protein graph
 # __________________________________________________________________________________________
-import time
 from enum import Enum
 from sys import getsizeof
 
@@ -576,12 +575,14 @@ def calibrate_all_subgraphs(
     for (idx, graph) in enumerate(list_of_ct_factor_graphs):
         if graph.number_of_nodes() > 2:
             node_category_dict.update(dict(graph.nodes(data="category")))
+
             initialized_message_object = Messages(graph)
             current_beliefs = initialized_message_object.zero_look_ahead_loopy_loop(
                 max_iterations,
                 tolerance,
                 progress_listener
             )
+
             results_dict.update(current_beliefs)
         progress_listener.graphs_updated(idx + 1, len(list_of_ct_factor_graphs))
     return results_dict, node_category_dict
@@ -623,7 +624,7 @@ def run_belief_propagation(
     ct_factor_graph.add_ct_nodes()
 
     ct_factor_graphs = [
-        separate_subgraphs(ct_factor_graph, filter_nodes)
+        separate_subgraphs(ct_factor_graph, sorted(filter_nodes))
         for filter_nodes in nx.connected_components(ct_factor_graph)
     ]
 

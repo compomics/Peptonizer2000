@@ -1,4 +1,4 @@
-from typing import Dict, List, Any
+from typing import Dict, List
 
 from .unipept_communicator import UnipeptCommunicator
 
@@ -15,11 +15,6 @@ def fetch_peptides_and_filter_taxa(
     # the user.
 
     taxon_query_ids = [int(item) for item in taxonomy_query.split(",")]
-
-    # If the root taxon is in the query filter, we don't need to do anything and we can simply return the original
-    # dictionary.
-    if 1 in taxon_query_ids:
-        return peptides_taxa
 
     # Retrieve all (in)direct children of the filter taxa provided by the user
     taxa_filter = set(unipept_communicator.get_descendants_for_taxa(taxon_query_ids, rank))

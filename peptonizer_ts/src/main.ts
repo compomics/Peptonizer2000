@@ -185,7 +185,7 @@ const startToPeptonize = async function() {
             alphas,
             betas,
             priors,
-            "strain",
+            "species",
             [1],
             50,
             new ProgressListener(document.getElementById("progress-view")!, 2)
