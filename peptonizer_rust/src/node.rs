@@ -9,12 +9,31 @@ pub struct Factor {
     pub array_labels: Vec<String>
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum NodeBelief {
+    PeptideBelief(Vec<f64>, Vec<f64>),
+    FactorBelief(Vec<f64>),
+    TaxonBelief(Vec<f64>, Vec<f64>),
+    ConvolutionTreeBelief
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub enum NodeType {
     PeptideNode { initial_belief_0: f64, initial_belief_1: f64 },
     FactorNode { parent_number: i32, initial_belief: Factor },
     TaxonNode { initial_belief_0: f64, initial_belief_1: f64 },
     ConvolutionTreeNode { number_of_parents: i32 }
+}
+
+impl NodeType {
+    pub fn get_initial_belief(&self) -> &NodeBelief {
+        match self {
+            PeptideNode { initial_belief_0, initial_belief_1 } => NodeBelief::PeptideBelief{ initial_belief_0, initial_belief_1 },
+            FactorNode { initial_belief, .. } => NodeBelief::FactorBelief { initial_belief },
+            TaxonNode { initial_belief_0, initial_belief_1 } => NodeBelief { initial_belief_0, initial_belief_1 },
+            ConvolutionTreeBelief { .. } => ConvolutionTreeBelief
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -59,8 +78,12 @@ impl Node {
         &self.subtype
     }
 
-    pub fn neighbors_count(&self) -> i32 {
-        self.incident_edges.len() as i32
+    pub fn get_initial_belief(&self) -> &NodeBelief {
+        self.subtype.get_initial_belief()
+    }
+
+    pub fn neighbors_count(&self) -> usize {
+        self.incident_edges.len()
     }
 
     pub fn get_incident_edges(&self) -> &Vec<i32> {

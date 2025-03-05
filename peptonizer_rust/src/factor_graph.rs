@@ -18,7 +18,15 @@ impl Edge {
         self.id
     }
 
-    pub fn get_nodes(&self) -> (i32, i32) {
+    pub fn get_node1_id() -> i32 {
+        node1_id
+    }
+
+    pub fn get_node2_id() -> i32 {
+        node2_id
+    }
+
+    pub fn get_node_ids(&self) -> (i32, i32) {
         (self.node1_id, self.node2_id)
     }
 
@@ -41,12 +49,28 @@ impl CTFactorGraph {
         }
     } 
 
+    pub fn get_node(&self, node_id: i32) -> &Node {
+        self.nodes[node_id as usize]
+    }
+
+    pub fn get_edge(&self, edge_id: i32) -> &Edge {
+        self.edges[edge_id as usize]
+    }
+
     pub fn node_count(&self) -> usize {
         self.nodes.len()
     }
 
     pub fn edge_count(&self) -> usize {
         self.edges.len()
+    }
+
+    pub fn get_nodes(&self) -> &Vec<Node> {
+        &self.nodes
+    }
+
+    pub fn get_edges(&self) -> &Vec<Edge> {
+        &self.edges
     }
 
     fn parse_edge(edge: &Element) -> Result<(String, String), String> {
@@ -136,13 +160,13 @@ impl CTFactorGraph {
                     let mut prot_ids: Vec<i32> = Vec::new();
                     for neighbor_id in self.get_neighbors(node) {
                         let neighbor: &Node = &self.nodes[neighbor_id as usize];
-                        if neighbor.is_factor_node() {
+                        if neighbor.is_taxon_node() {
                             prot_ids.push(neighbor_id);
                             prot_names.push(neighbor.get_name().to_string());
                         }
                     }
-
-                    let new_node_name = prot_names.join(" ");
+                    
+                    let new_node_name = format!("CTree {}", prot_names.join(" "));
                     let new_node_id = next_node_id;
                     let new_node = Node::new_convolution_node(new_node_id, new_node_name, prot_ids.len() as i32);
                     next_node_id += 1;

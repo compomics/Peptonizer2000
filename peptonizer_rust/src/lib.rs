@@ -10,6 +10,7 @@ mod weight_taxa;
 mod zero_lookahead_belief_propagation;
 mod node;
 mod factor_graph;
+mod messages;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
