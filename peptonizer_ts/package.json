@@ -1,7 +1,7 @@
 {
   "name": "peptonizer",
   "private": true,
-  "version": "0.0.26",
+  "version": "0.0.28",
   "type": "module",
   "types": "dist/types.d.ts",
   "files": [
@@ -14,14 +14,14 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
-    "vite": "^5.4.8"
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
   },
   "dependencies": {
     "@types/async": "^3.2.24",
     "async": "^3.2.6",
-    "pyodide": "^0.26.3",
+    "pyodide": "^0.27.3",
     "rollup-plugin-dts": "^6.1.1",
-    "vite-plugin-dts": "^4.3.0"
+    "vite-plugin-dts": "^4.5.3"
   }
 }

@@ -180,13 +180,13 @@ const startToPeptonize = async function() {
 
     try {
         const peptonizerResult = await peptonizer.peptonize(
+            new Map(),
             peptidesScores,
             peptidesCounts,
             alphas,
             betas,
             priors,
             "species",
-            [1],
             50,
             new ProgressListener(document.getElementById("progress-view")!, 2)
         );

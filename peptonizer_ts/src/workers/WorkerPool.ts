@@ -85,31 +85,32 @@ class WorkerPool {
      * Generates a CSV-file representing a dataframe with all the taxa weights required for the Peptonizer. These
      * taxa weights will be used in a subsequent step of the Peptonizer to generate the factor graph.
      *
+     * @param peptidesTaxa Mapping between peptides and the associated taxa. If a filtering by taxa (or another
+     * criterium) is required, this needs to be done before passing this mapping to this function.
      * @param peptidesScores Mapping between peptide sequences that need to be considered by the peptonizer and a
      * scoring value assigned to each sequence by prior steps (e.g. search engines).
      * @param peptidesCounts Mapping between peptide sequences and their occurrences in the input file.
      * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference?
      * @param taxaInGraph How many taxa are being used in the graphical model?
-     * @param taxonQuery Determines which taxa should be taken into account for the Peptonizer inference.
      * @return A CSV-representation of a dataframe with taxon weights.
      */
     public async performTaxaWeighing(
+        peptidesTaxa: Map<string, number[]>,
         peptidesScores: Map<string, number>,
         peptidesCounts: Map<string, number>,
         rank: string,
         taxaInGraph: number,
-        taxonQuery: number[]
     ): Promise<[string, string]> {
         if (this.isCancelled) {
             throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
         }
 
         const eventData: PerformTaxaWeighingTaskData = {
+            peptidesTaxa,
             peptidesScores,
             peptidesCounts,
             rank,
-            taxaInGraph,
-            taxonQuery: taxonQuery.join(",")
+            taxaInGraph
         };
 
         return await this.queue.pushAsync({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });

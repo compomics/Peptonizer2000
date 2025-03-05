@@ -8,11 +8,11 @@ enum WorkerTask {
 }
 
 interface PerformTaxaWeighingTaskData {
+    peptidesTaxa: Map<string, number[]>;
     peptidesScores: Map<string, number>;
     peptidesCounts: Map<string, number>;
     rank: string;
     taxaInGraph: number;
-    taxonQuery: string;
 }
 
 interface GenerateGraphTaskData {
