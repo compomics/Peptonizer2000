@@ -10,12 +10,17 @@ enum WorkerTask {
 
 interface FetchUnipeptTaxonTaskData {
     peptidesScores: Map<string, number>;
+    rank: string;
+    taxonQuery: number[];
 }
 
 interface PerformTaxaWeighingTaskData {
     unipeptJson: string;
     peptidesScores: Map<string, number>;
     peptidesCounts: Map<string, number>;
+    rank: string;
+    taxaInGraph: number;
+    taxonQuery: string;
 }
 
 interface GenerateGraphTaskData {
@@ -26,7 +31,7 @@ interface ExecutePepgmTaskData {
     graphXml: string,
     alpha: number,
     beta: number,
-    prior: number
+    prior: number,
 }
 
 interface ClusterTaxaTaskData {
@@ -86,7 +91,8 @@ interface ComputeGoodnessDataResult {
 enum ResultType {
     SUCCESSFUL,
     PROGRESS,
-    FAILED
+    FAILED,
+    CANCELLED
 }
 
 type SpecificOutputEventData = { resultType: ResultType.SUCCESSFUL } & (

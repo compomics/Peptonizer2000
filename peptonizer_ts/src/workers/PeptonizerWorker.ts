@@ -1,3 +1,12 @@
+/**
+ * This worker contains all instructions to run the different steps that are required by the Peptonizer. All of these
+ * functions are implemented in the same Worker instance and are loaded at the same time into memory instead of into
+ * smaller separate workers. Since all of these workers require a running Pyodide instance, it's more efficient
+ * (memory-wise) to bundle all Python functionality into one bigger worker.
+ *
+ * @author Pieter Verschaffelt
+ */
+
 import {loadPyodide, PyodideInterface} from 'pyodide';
 import peptonizerWhlBase64 from "./lib/peptonizer-0.1-py3-none-any.base64.whl?raw";
 import {
@@ -24,7 +33,7 @@ import generateGraphPythonCode from "./lib/generate_pepgm_graph.py?raw";
 import executePepgmPythonCode from "./lib/execute_pepgm.py?raw";
 import clusterTaxaPythonCode from "./lib/cluster_taxa.py?raw";
 import computeGoodnessPythonCode from "./lib/compute_goodness.py?raw";
-import { timeout } from 'async';
+import { log, timeout } from 'async';
 
 interface DedicatedWorkerGlobalScope {
     pyodide: PyodideInterface;
@@ -77,6 +86,8 @@ async function loadPyodideAndPackages(): Promise<void> {
 async function fetchUnipeptTaxonInformation(data: FetchUnipeptTaxonTaskData): Promise<FetchUnipeptTaxonTaskResult> {
     // Set inputs for the Python code
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
+    self.pyodide.globals.set('rank', data.rank);
+    self.pyodide.globals.set('taxon_query', data.taxonQuery);
 
     // Fetch the Python code and execute it with Pyodide
     const unipeptJson = await self.pyodide.runPythonAsync(fetchUnipeptTaxonPythonCode);
@@ -97,6 +108,9 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     self.pyodide.globals.set('unipept_json', data.unipeptJson);
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
+    self.pyodide.globals.set('rank', data.rank);
+    self.pyodide.globals.set('taxa_in_graph', data.taxaInGraph);
+    self.pyodide.globals.set('taxon_query', data.taxonQuery);
 
     // Fetch the Python code and execute it with Pyodide
     const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
@@ -220,8 +234,6 @@ self.onmessage = async (event: MessageEvent<InputEventData>): Promise<void> => {
             output
         });
     } catch (error: any) {
-        console.error(error);
-
         self.postMessage({
             resultType: ResultType.FAILED,
             workerId: event.data.workerId,

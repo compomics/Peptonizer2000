@@ -26,7 +26,6 @@ alpha: [0.8, 0.9, 0.99]
 beta: [0.6, 0.7, 0.8, 0.9]
 #beta: [0.9]
 
-
 # Range of prior parameter to use for the gird search
 prior: [0.3, 0.5]
 #prior: [0.5]

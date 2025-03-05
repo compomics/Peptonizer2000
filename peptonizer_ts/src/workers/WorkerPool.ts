@@ -1,11 +1,13 @@
 import PeptonizerWorker from './PeptonizerWorker.ts?worker&inline';
 import {
-    ClusterTaxaTaskData, ComputeGoodnessTaskData,
+    ClusterTaxaTaskData,
+    ComputeGoodnessTaskData,
     ExecutePepgmTaskData,
     FetchUnipeptTaxonTaskData,
     GenerateGraphTaskData,
     InputEventData,
-    OutputEventData, PepgmProgressUpdate,
+    OutputEventData,
+    PepgmProgressUpdate,
     PerformTaxaWeighingTaskData,
     ResultType,
     SpecificInputEventData,
@@ -21,11 +23,15 @@ import { PeptonizerProgressListener } from "../PeptonizerProgressListener.ts";
  */
 class WorkerPool {
     private workers: [Worker, number][] = [];
+    private allWorkers: Worker[] = [];
     private queue: QueueObject<{ queueInput: SpecificInputEventData, progressListener?: PeptonizerProgressListener }>;
+    private isCancelled: boolean = false;
 
     constructor(workerCount: number = 1) {
         for (let i = 0; i < workerCount; i++) {
-            this.workers.push([new PeptonizerWorker(), i]);
+            const worker = new PeptonizerWorker();
+            this.allWorkers.push(worker);
+            this.workers.push([worker, i]);
         }
 
         this.queue = async.queue(async(
@@ -76,9 +82,11 @@ class WorkerPool {
         }, workerCount);
     }
 
-    public async fetchUnipeptTaxonInfo(peptidesScores: Map<string, number>): Promise<string> {
+    public async fetchUnipeptTaxonInfo(peptidesScores: Map<string, number>, rank: string, taxonQuery: number[]): Promise<string> {
         const eventData: FetchUnipeptTaxonTaskData = {
-            peptidesScores
+            peptidesScores,
+            rank,
+            taxonQuery
         };
 
         return await this.queue.push({ queueInput: { task: WorkerTask.FETCH_UNIPEPT_TAXON, input: eventData }, progressListener: undefined });
@@ -91,30 +99,47 @@ class WorkerPool {
      * @param peptidesScores Mapping between peptide sequences that need to be considered by the peptonizer and a
      * scoring value assigned to each sequence by prior steps (e.g. search engines).
      * @param peptidesCounts Mapping between peptide sequences and their occurrences in the input file.
+     * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference?
+     * @param taxaInGraph How many taxa are being used in the graphical model?
+     * @param taxonQuery Determines which taxa should be taken into account for the Peptonizer inference.
      * @return A CSV-representation of a dataframe with taxon weights.
      */
     public async performTaxaWeighing(
         peptidesScores: Map<string, number>,
         peptidesCounts: Map<string, number>,
-        unipeptJson: string
+        unipeptJson: string,
+        rank: string,
+        taxaInGraph: number,
+        taxonQuery: number[]
     ): Promise<[string, string]> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: PerformTaxaWeighingTaskData = {
             peptidesScores,
             peptidesCounts,
-            unipeptJson
+            unipeptJson,
+            rank,
+            taxaInGraph,
+            taxonQuery: taxonQuery.join(",")
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.PERFORM_TAXA_WEIGHING, input: eventData }, progressListener: undefined });
     }
 
     public async generateGraph(
         taxaWeightsCsv: string
     ): Promise<string> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: GenerateGraphTaskData = {
             taxaWeightsCsv
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.GENERATE_GRAPH, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.GENERATE_GRAPH, input: eventData }, progressListener: undefined });
     }
 
     public async executePepgm(
@@ -124,6 +149,10 @@ class WorkerPool {
         prior: number,
         progressListener?: PeptonizerProgressListener
     ): Promise<PeptonizerResult> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ExecutePepgmTaskData = {
             graphXml,
             alpha,
@@ -131,7 +160,7 @@ class WorkerPool {
             prior
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.EXECUTE_PEPGM, input: eventData }, progressListener });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.EXECUTE_PEPGM, input: eventData }, progressListener });
     }
 
     public async clusterTaxa(
@@ -139,25 +168,44 @@ class WorkerPool {
         taxaWeightsCsv: string,
         similarityThreshold: number = 0.9
     ): Promise<string> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ClusterTaxaTaskData = {
             graphXml,
             taxaWeightsCsv,
             similarityThreshold
         }
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.CLUSTER_TAXA, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.CLUSTER_TAXA, input: eventData }, progressListener: undefined });
     }
 
     public async computeGoodness(
         clusteredTaxaWeightsCsv: string,
         peptonizerResults: Map<string, number>
     ): Promise<number> {
+        if (this.isCancelled) {
+            throw new Error("Workerpool is no longer active. Cancel has been called on this pool before.");
+        }
+
         const eventData: ComputeGoodnessTaskData = {
             clusteredTaxaWeightsCsv,
             peptonizerResults
         };
 
-        return await this.queue.push({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
+        return await this.queue.pushAsync({ queueInput: { task: WorkerTask.COMPUTE_GOODNESS, input: eventData }, progressListener: undefined });
+    }
+
+    /**
+     * Stop execution of all currently running task and clean up all data that was left behind.
+     */
+    public close(): void {
+        this.isCancelled = true;
+        while (this.allWorkers.length > 0) {
+            const worker = this.allWorkers.pop();
+            worker?.terminate();
+        }
     }
 
     /**
@@ -222,6 +270,5 @@ class WorkerPool {
         }
     }
 }
-
 
 export { WorkerPool };

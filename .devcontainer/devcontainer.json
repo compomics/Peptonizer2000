@@ -8,7 +8,7 @@
   "features": {
     "ghcr.io/rocker-org/devcontainer-features/miniforge:2": {},
     "ghcr.io/devcontainers/features/node:1":  {},
-  }
+  },
 
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],

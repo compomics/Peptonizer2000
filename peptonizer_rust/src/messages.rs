@@ -1,5 +1,23 @@
 use crate::factor_graph::CTFactorGraph;
-use crate::node::NodeBelief;
+use crate::node::{Node, NodeType};
+use std::collections::HashMap;
+
+#[derive(Debug)]
+pub enum NodeBelief {
+    PeptideBelief(f64, f64),
+    FactorBelief(Vec<[f64;2]>),
+    TaxonBelief(f64, f64),
+    ConvolutionTreeBelief
+}
+
+pub fn get_initial_belief(node: &Node) -> NodeBelief {
+    match node.get_subtype() {
+        NodeType::PeptideNode { initial_belief_0, initial_belief_1 } => NodeBelief::PeptideBelief(*initial_belief_0, *initial_belief_1),
+        NodeType::FactorNode { initial_belief, .. } => NodeBelief::FactorBelief(initial_belief.array.clone()),
+        NodeType::TaxonNode { initial_belief_0, initial_belief_1 } => NodeBelief::TaxonBelief(*initial_belief_0, *initial_belief_1),
+        NodeType::ConvolutionTreeNode { .. } => NodeBelief::ConvolutionTreeBelief
+    }
+}
 
 pub struct Messages {
     max_val: Option<(i32, i32)>,
@@ -22,7 +40,7 @@ impl Messages {
 
         let mut current_beliefs: Vec<NodeBelief> = Vec::with_capacity(ct_graph_in.node_count());
         for node in ct_graph_in.get_nodes() {
-            current_beliefs.push(node.get_initial_belief().clone());
+            current_beliefs.push(get_initial_belief(node));
         }
 
         

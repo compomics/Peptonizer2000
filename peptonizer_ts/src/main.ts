@@ -32,6 +32,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
           <div class="lds-roller"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
           <div>Processing...</div>
           <div id="progress-view" style="display: flex;"></div>
+          <button id="cancel-button">Cancel</button>
       </div>
       <div id="result-view" hidden>
           <h2>Final output</h2>
@@ -110,6 +111,10 @@ class ProgressListener implements PeptonizerProgressListener {
         console.log("Peptonizer finished!");
     }
 
+    peptonizerCancelled() {
+        console.log("Peptonizer cancelled!");
+    }
+
     taskStarted(parameterset: PeptonizerParameterSet, workerId: number) {
         console.log(
             `Started new Peptonizer task on worker ${workerId} with parameters α = ${parameterset.alpha}, β = ${parameterset.beta} and γ = ${parameterset.prior}`
@@ -152,6 +157,7 @@ const startToPeptonize = async function() {
     const resultView: HTMLElement = document.getElementById("result-view")!;
     const inputElement: HTMLElement = document.getElementById("inputs")!;
     const loadingSpinner: HTMLElement = document.getElementById("loading-spinner")!;
+    const cancelButton: HTMLElement = document.getElementById("cancel-button")!;
 
     resultView.hidden = true;
     inputElement.hidden = true;
@@ -165,74 +171,92 @@ const startToPeptonize = async function() {
 
     const peptonizer = new Peptonizer();
 
+    cancelButton.addEventListener("click", async () => {
+        peptonizer.cancel();
+        console.log("Cancellation finished...");
+    });
+
     const [peptidesScores, peptidesCounts] = PeptonizerInputParser.parse(fileContents);
 
-    const peptonizerResult = await peptonizer.peptonize(
-        peptidesScores,
-        peptidesCounts,
-        alphas,
-        betas,
-        priors,
-        new ProgressListener(document.getElementById("progress-view")!, 2)
-    );
+    try {
+        const peptonizerResult = await peptonizer.peptonize(
+            peptidesScores,
+            peptidesCounts,
+            alphas,
+            betas,
+            priors,
+            "species",
+            [1],
+            50,
+            new ProgressListener(document.getElementById("progress-view")!, 2)
+        );
 
-    const end = new Date().getTime();
-    console.log(`Peptonizer took ${(end - start) / 1000}s.`)
 
-    // Extract entries from the Map, format values, and sort them
-    const entries = Array.from(peptonizerResult.entries()).map(
-        ([key, value]) => [key, parseFloat(value.toFixed(2))]
-    );
-    // @ts-ignore
-    const sortedEntries = entries.sort((a, b) => b[1] - a[1]);
+        const end = new Date().getTime();
+        console.log(`Peptonizer took ${(end - start) / 1000}s.`);
 
-    // Extract keys and values from the sorted entries
-    const labels = sortedEntries.map(entry => entry[0]); // Sorted keys
-    const values = sortedEntries.map(entry => entry[1]); // Sorted values
+        if (!peptonizerResult) {
+            return;
+        }
 
-    // Render the chart with Highcharts
-    // @ts-ignore
-    Highcharts.chart('peptonizer-chart', {
-        chart: {
-            type: 'bar'
-        },
-        title: {
-            text: 'Peptonizer Confidence Scores'
-        },
-        xAxis: {
-            categories: labels.slice(0, 20),
-            title: {
-                text: 'Peptide IDs'
-            }
-        },
-        yAxis: {
-            min: 0,
-            max: 1,
-            title: {
-                text: 'Confidence Score',
-                align: 'high'
+        // Extract entries from the Map, format values, and sort them
+        const entries = Array.from(peptonizerResult.entries()).map(
+            ([key, value]) => [key, parseFloat(value.toFixed(2))]
+        );
+        // @ts-ignore
+        const sortedEntries = entries.sort((a, b) => b[1] - a[1]);
+
+        // Extract keys and values from the sorted entries
+        const labels = sortedEntries.map(entry => entry[0]); // Sorted keys
+        const values = sortedEntries.map(entry => entry[1]); // Sorted values
+
+        // Render the chart with Highcharts
+        // @ts-ignore
+        Highcharts.chart('peptonizer-chart', {
+            chart: {
+                type: 'bar'
             },
-            labels: {
-                overflow: 'justify',
-                format: '{value:.3f}'
-            }
-        },
-        tooltip: {
-            pointFormat: 'Confidence: <b>{point.y:.2f}</b>'
-        },
-        plotOptions: {
-            bar: {
-                dataLabels: {
-                    enabled: true,
-                    format: '{y:.3f}'
+            title: {
+                text: 'Peptonizer Confidence Scores'
+            },
+            xAxis: {
+                categories: labels.slice(0, 20),
+                title: {
+                    text: 'Peptide IDs'
                 }
-            }
-        },
-        series: [{
-            name: 'Confidence score',
-            data: values.slice(0, 20)
-        }]
-    });
+            },
+            yAxis: {
+                min: 0,
+                max: 1,
+                title: {
+                    text: 'Confidence Score',
+                    align: 'high'
+                },
+                labels: {
+                    overflow: 'justify',
+                    format: '{value:.3f}'
+                }
+            },
+            tooltip: {
+                pointFormat: 'Confidence: <b>{point.y:.2f}</b>'
+            },
+            plotOptions: {
+                bar: {
+                    dataLabels: {
+                        enabled: true,
+                        format: '{y:.3f}'
+                    }
+                }
+            },
+            series: [{
+                name: 'Confidence score',
+                data: values.slice(0, 20)
+            }]
+        });
+    } catch (err) {
+        console.log("Error caught in main!");
+        console.log(err);
+    }
 
     resultView.hidden = false;
     loadingSpinner.hidden = true;

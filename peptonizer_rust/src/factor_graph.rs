@@ -18,12 +18,12 @@ impl Edge {
         self.id
     }
 
-    pub fn get_node1_id() -> i32 {
-        node1_id
+    pub fn get_node1_id(&self) -> i32 {
+        self.node1_id
     }
 
-    pub fn get_node2_id() -> i32 {
-        node2_id
+    pub fn get_node2_id(&self) -> i32 {
+        self.node2_id
     }
 
     pub fn get_node_ids(&self) -> (i32, i32) {
@@ -50,11 +50,11 @@ impl CTFactorGraph {
     } 
 
     pub fn get_node(&self, node_id: i32) -> &Node {
-        self.nodes[node_id as usize]
+        &self.nodes[node_id as usize]
     }
 
     pub fn get_edge(&self, edge_id: i32) -> &Edge {
-        self.edges[edge_id as usize]
+        &self.edges[edge_id as usize]
     }
 
     pub fn node_count(&self) -> usize {
@@ -134,7 +134,7 @@ impl CTFactorGraph {
     pub fn get_neighbors(&self, node: &Node) -> Vec<i32> {
         let mut neighbors = Vec::with_capacity(node.neighbors_count() as usize);
         for edge_id in node.get_incident_edges() {
-            let (node1_id, node2_id) = self.edges[*edge_id as usize].get_nodes();
+            let (node1_id, node2_id) = self.edges[*edge_id as usize].get_node_ids();
             let neighbor: i32 = if node1_id == node.get_id() { node2_id } else { node1_id };
             neighbors.push(neighbor);
         }
@@ -216,7 +216,7 @@ impl CTFactorGraph {
         }
         
         for edge in &new_edges {
-            let (node1_id, node2_id) = edge.get_nodes();
+            let (node1_id, node2_id) = edge.get_node_ids();
             new_nodes[node1_id as usize].add_incident_edge(edge.get_id());
             new_nodes[node2_id as usize].add_incident_edge(edge.get_id());
         }
@@ -257,7 +257,7 @@ impl CTFactorGraph {
                 let mut old_to_new_edges: HashMap<i32, i32> = HashMap::new();
                 for edge in &self.edges {
 
-                    let (source, target): (i32, i32) = edge.get_nodes();
+                    let (source, target): (i32, i32) = edge.get_node_ids();
                     if component_ids.contains(&source) && component_ids.contains(&target) {
 
                         let (new_source, new_target): (i32, i32) = (old_to_new_nodes[&source], old_to_new_nodes[&target]);

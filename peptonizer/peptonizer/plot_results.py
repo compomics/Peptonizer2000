@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from .taxon_manager import TaxonManager
+from .unipept_communicator import UnipeptCommunicator
 
 
 def plot_peptonizer_results(input_file: str, output_file: str, number_of_taxa: int = 25):
@@ -23,7 +23,9 @@ def plot_peptonizer_results(input_file: str, output_file: str, number_of_taxa: i
     taxa_check = tax_ids.ID.tolist()
 
     # translate taxids to scientific names
-    taxa_name_dict = TaxonManager.get_names_for_taxa([int(x) for x in tax_ids["ID"]])
+    unipept_communicator = UnipeptCommunicator()
+
+    taxa_name_dict = unipept_communicator.get_names_for_taxa([int(x) for x in tax_ids["ID"]])
     taxa_names = [taxa_name_dict[int(tax)] for tax in taxa_check]
     scores = tax_ids["score"]
 

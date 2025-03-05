@@ -4,10 +4,13 @@ import {WorkerPool} from "./workers/WorkerPool.ts";
 type PeptonizerResult = Map<string, number>;
 
 class Peptonizer {
+    private isCancelled: boolean = false;
+    private workerPool!: WorkerPool;
+
     /**
      * Start the peptonizer. This function takes in a PSM-file that has been read in earlier (so no file paths here). The
      * PSMS including their intensities are then used as input to the Peptonizer-pipeline. This pipeline will finally
-     * return a Map in which NCBI taxon IDs are mapped onto their propabilities (as computed by the Peptonizer).
+     * return a Map in which NCBI taxon IDs are mapped onto their probabilities (as computed by the Peptonizer).
      *
      * @param peptidesScores Mapping between the peptide sequences that should be present in the peptonizer and a scoring
      * metric (derived from a prior search engine step) for each peptide.
@@ -18,9 +21,14 @@ class Peptonizer {
      * detecting a peptide at random.
      * @param priors An array of possible values for the gamma (or prior) parameter. Gamma indicates the prior probability
      * of a taxon being present.
+     * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference.
+     * @param taxonQuery a list of NCBI IDs that should be used for filtering the taxa that are considered by the
+     * Peptonizer in its graph.
+     * @param taxaInGraph How many taxa are being used in the graphical model?
      * @param progressListener Is called everytime the progress of the belief propagation algorithm has been updated.
      * @param workers The amount of Web Workers that can be spawned and used simultaneously to run the Peptonizer.
-     * @return Mapping between NCBI taxon IDs (integer, > 0) and probabilities (float in [0, 1]).
+     * @return Mapping between NCBI taxon IDs (integer, > 0) and probabilities (float in [0, 1]). If execution of the
+     * Peptonizer was cancelled before it was completed, it returns an undefined result set.
      */
     async peptonize(
         peptidesScores: Map<string, number>,
@@ -28,68 +36,113 @@ class Peptonizer {
         alphas: number[],
         betas: number[],
         priors: number[],
-        progressListener: PeptonizerProgressListener,
+        rank: string = "species",
+        taxonQuery: number[] = [1],
+        taxaInGraph: number = 100,
+        progressListener?: PeptonizerProgressListener,
         workers: number = 2
-    ): Promise<PeptonizerResult> {
-        const workerPool = new WorkerPool(workers);
+    ): Promise<PeptonizerResult | undefined> {
+        try {
+            this.workerPool = new WorkerPool(workers);
 
-        const unipept_json = await workerPool.fetchUnipeptTaxonInfo(peptidesScores);
-        const [sequenceScoresCsv, taxonWeightsCsv] = await workerPool.performTaxaWeighing(peptidesScores, peptidesCounts, unipept_json);
-        const generatedGraph = await workerPool.generateGraph(sequenceScoresCsv);
+            // Compute the total amount of tasks and which tasks to perform.
+            const parameterSets: PeptonizerParameterSet[] = [];
 
-        // Compute the total amount of tasks and which tasks to perform.
-        const parameterSets: PeptonizerParameterSet[] = [];
-
-        for (const alpha of alphas) {
-            for (const beta of betas) {
-                for (const prior of priors) {
-                    parameterSets.push({
-                        alpha,
-                        beta,
-                        prior
-                    });
+            for (const alpha of alphas) {
+                for (const beta of betas) {
+                    for (const prior of priors) {
+                        parameterSets.push({
+                            alpha,
+                            beta,
+                            prior
+                        });
+                    }
                 }
             }
-        }
 
-        // Notify any listeners that the Peptonizer did start running (and report which set of parameters will be tuned)
-        progressListener?.peptonizerStarted(parameterSets.length, parameterSets);
+            // Notify any listeners that the Peptonizer did start running (and report which set of parameters will be tuned)
+            progressListener?.peptonizerStarted(parameterSets.length, parameterSets);
 
-        const pepgmPromises: Promise<PeptonizerResult>[] = [];
+            const unipept_json = await this.workerPool.fetchUnipeptTaxonInfo(peptidesScores, rank, taxonQuery);
 
-        for (const paramSet of parameterSets) {
-            pepgmPromises.push(
-                workerPool.executePepgm(generatedGraph, paramSet.alpha, paramSet.beta, paramSet.prior, progressListener)
+            const taxonWeighingResult = await this.workerPool.performTaxaWeighing(
+                peptidesScores,
+                peptidesCounts,
+                unipept_json,
+                rank,
+                taxaInGraph,
+                taxonQuery
             );
-        }
 
-        // Wait until all parameter sets have been tuned...
-        const peptonizerResults = await Promise.all(pepgmPromises);
-
-        // Now that we have all the results generated by the peptonizer, we need to figure out which one yields the best
-        // results
-
-        // First compute the clustered taxa weights
-        const clusteredTaxaWeightsCsv = await workerPool.clusterTaxa(generatedGraph, taxonWeightsCsv);
-
-        let bestGoodness = -1;
-        let bestResult: PeptonizerResult | undefined;
-        for (const result of peptonizerResults) {
-            const goodness = await workerPool.computeGoodness(clusteredTaxaWeightsCsv, result);
-
-            if (goodness > bestGoodness) {
-                bestGoodness = goodness;
-                bestResult = result;
+            if (this.isCancelled) {
+                return;
             }
+            const [sequenceScoresCsv, taxonWeightsCsv] = taxonWeighingResult;
+
+            const generatedGraph = await this.workerPool.generateGraph(sequenceScoresCsv);
+
+            const pepgmPromises: Promise<PeptonizerResult>[] = [];
+
+            if (this.isCancelled) {
+                return;
+            }
+
+            for (const paramSet of parameterSets) {
+                pepgmPromises.push(
+                    this.workerPool.executePepgm(generatedGraph, paramSet.alpha, paramSet.beta, paramSet.prior, progressListener)
+                );
+            }
+
+            // Wait until all parameter sets have been tuned...
+            const peptonizerResults = await Promise.all(pepgmPromises);
+
+            // Now that we have all the results generated by the peptonizer, we need to figure out which one yields the best
+            // results
+
+            if (this.isCancelled) {
+                return;
+            }
+
+            // First compute the clustered taxa weights
+            const clusteredTaxaWeightsCsv = await this.workerPool.clusterTaxa(generatedGraph, taxonWeightsCsv);
+
+            if (this.isCancelled) {
+                return;
+            }
+
+            let bestGoodness = -1;
+            let bestResult: PeptonizerResult | undefined;
+            for (const result of peptonizerResults) {
+                const goodness = await this.workerPool.computeGoodness(clusteredTaxaWeightsCsv, result);
+
+                if (goodness > bestGoodness) {
+                    bestGoodness = goodness;
+                    bestResult = result;
+                }
+            }
+
+            if (this.isCancelled) {
+                return undefined;
+            }
+
+            if (!bestResult) {
+                throw new Error("No results found!");
+            }
+
+            this.workerPool.close();
+            progressListener?.peptonizerFinished();
+
+            return bestResult;
+        } catch (error) {
+            throw error;
+        } finally {
+            this.workerPool.close();
         }
+    }
 
-        if (!bestResult) {
-            throw new Error("No results found!");
-        }
-
-        progressListener?.peptonizerFinished();
-
-        return bestResult;
+    public cancel(): void {
+        this.isCancelled = true;
+        this.workerPool.close();
     }
 }
 
