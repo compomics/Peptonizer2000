@@ -22,8 +22,9 @@ pub fn perform_taxa_weighing(
     
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut taxa, &taxa_rank);
-    log(&format!("taxa len: {}", taxa.len()));
-    let chosen_idx: HashSet<usize> = weighted_random_sample(&taxa, 10000); //TODO: what if < 10000 or close to 10000 + hardcoded not a good idea
+    // TODO: enable sampling (disabled to get deterministic output)
+    // let chosen_idx: HashSet<usize> = weighted_random_sample(&taxa, 10000); // TODO: what if < 10000 or close to 10000 + hardcoded not a good idea
+    let chosen_idx: Vec<usize> = (0..taxa.len()).collect();
 
     log(&format!("Using {} sequences as input...", chosen_idx.len()));
 
@@ -92,12 +93,11 @@ pub fn perform_taxa_weighing(
     // Group the duplicate entries of higher up taxa and sum their weights
     let higher_taxid_weights = tax_id_weights;
 
-    let tax_ids: Vec<i32> = tax_ids.into_iter().filter(|id| *id != 1869227).collect();
     let higher_taxid_unique: Vec<bool> = tax_ids.iter().map(|id| higher_unique_psm_taxids.contains(&id)).collect();
 
     // TODO: check if duplicate removal is necessary, example datasets do not contain doubles. Link to sampling. Lower the amount of sampled?
     let sequence_csv;
-    if tax_ids.len() < 50 {
+    if higher_taxid_weights.len() < 50 {
         sequence_csv = generate_sequence_csv(None, false, sequences, pep_scores, pep_psm_counts, higher_taxa, weights, log_weights);
     } else {
         let mut taxa_to_include: HashSet<i32> = tax_ids.iter().take(max_taxa).cloned().collect();

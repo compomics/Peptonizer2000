@@ -132,8 +132,9 @@ def perform_taxa_weighing(
     """
     print("Started mapping all taxon ids to the specified rank...")
     peptide_taxa = normalize_taxa(peptide_taxa, taxa_rank, unipept_communicator)
-    peptide_taxa = weighted_random_sample(peptide_taxa, 10000)
-
+    # TODO: enable sampling: disabled to be deterministic
+    # peptide_taxa = weighted_random_sample(peptide_taxa, 10000)
+    
     print(f"Using {len(peptide_taxa)} sequences as input...")
 
     # Convert a JSON object into a Pandas DataFrame

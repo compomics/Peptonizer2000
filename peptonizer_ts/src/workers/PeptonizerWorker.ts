@@ -102,20 +102,20 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     let peptidesScores = JSON.stringify(Object.fromEntries(data.peptidesScores));
     let peptidesCounts = JSON.stringify(Object.fromEntries(data.peptidesCounts));
 
-    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing_wasm(peptidesTaxa, peptidesScores, peptidesCounts, 10, "species");
-    /*
+    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing_wasm(peptidesTaxa, peptidesScores, peptidesCounts, data.taxaInGraph, "species");
+    
     // Set inputs for the Python code
-    self.pyodide.globals.set('unipept_json', data.unipeptJson);
+    /*self.pyodide.globals.set('peptides_taxa', data.peptidesTaxa);
     self.pyodide.globals.set('peptides_scores', data.peptidesScores);
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
     self.pyodide.globals.set('rank', data.rank);
     self.pyodide.globals.set('taxa_in_graph', data.taxaInGraph);
-    self.pyodide.globals.set('peptides_taxa', data.peptidesTaxa);
 
     // Fetch the Python code and execute it with Pyodide
-    const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
-    */
+    const [sequenceScoresCsv_py, taxaWeightsCsv_py] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);
 
+    console.log(taxaWeightsCsv);
+    console.log(taxaWeightsCsv_py);*/
     console.timeEnd("Execution Time");
     return {
         sequenceScoresCsv,
@@ -136,6 +136,10 @@ async function generateGraph(data: GenerateGraphTaskData): Promise<GenerateGraph
 }
 
 async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promise<ExecutePepgmTaskDataResult> {
+
+    const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
+    console.log(taxonScoresJson);
+    
     /*self.pyodide.globals.set('graph', data.graphXml);
     self.pyodide.globals.set('alpha', data.alpha);
     self.pyodide.globals.set('beta', data.beta);
@@ -143,9 +147,6 @@ async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promi
     self.pyodide.globals.set('worker_id', workerId);
 
     const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);*/
-
-    const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
-    console.log(taxonScoresJson);
 
     return {
         taxonScoresJson

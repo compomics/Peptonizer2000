@@ -43,14 +43,14 @@ pub fn run_belief_propagation(
     ct_factor_graph.fill_in_factors(alpha, beta, regularized);
     ct_factor_graph.fill_in_priors(prior);
     ct_factor_graph.add_ct_nodes();
-    // log(&format!("{} {}", ct_factor_graph.node_count(), ct_factor_graph.edge_count()));
+    log(&format!("{} {}", ct_factor_graph.node_count(), ct_factor_graph.edge_count()));
     let ct_factor_graphs: Vec<CTFactorGraph> = ct_factor_graph.connected_components();
 
-    /*for graph in ct_factor_graphs {
+    for graph in &ct_factor_graphs {
         log(&format!("{} {}", graph.node_count(), graph.edge_count())); // node counts old rust: 24816, 6, 6, 6
         // counts python: 21045 29953
         // 5 4
-    }*/
+    }
 
     calibrate_all_subgraphs(
         ct_factor_graphs,
