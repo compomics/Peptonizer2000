@@ -98,11 +98,11 @@ async function fetchUnipeptTaxonInformation(data: FetchUnipeptTaxonTaskData): Pr
 async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<PerformTaxaWeighingTaskResult> {
     console.time("Execution Time");
     
-    let unipeptResponse = data.unipeptJson;
+    let peptidesTaxa = JSON.stringify(Object.fromEntries(data.peptidesTaxa));
     let peptidesScores = JSON.stringify(Object.fromEntries(data.peptidesScores));
     let peptidesCounts = JSON.stringify(Object.fromEntries(data.peptidesCounts));
 
-    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing_wasm(unipeptResponse, peptidesScores, peptidesCounts, 10, "species");
+    const [sequenceScoresCsv, taxaWeightsCsv] = perform_taxa_weighing_wasm(peptidesTaxa, peptidesScores, peptidesCounts, 10, "species");
     /*
     // Set inputs for the Python code
     self.pyodide.globals.set('unipept_json', data.unipeptJson);
@@ -110,7 +110,7 @@ async function performTaxaWeighing(data: PerformTaxaWeighingTaskData): Promise<P
     self.pyodide.globals.set('peptides_counts', data.peptidesCounts);
     self.pyodide.globals.set('rank', data.rank);
     self.pyodide.globals.set('taxa_in_graph', data.taxaInGraph);
-    self.pyodide.globals.set('taxon_query', data.taxonQuery);
+    self.pyodide.globals.set('peptides_taxa', data.peptidesTaxa);
 
     // Fetch the Python code and execute it with Pyodide
     const [sequenceScoresCsv, taxaWeightsCsv] = await self.pyodide.runPythonAsync(performTaxaWeighingPythonCode);

@@ -4,6 +4,8 @@ import peptonizerLogo from "./peptonizer.jpg"
 import {PeptonizerParameterSet, PeptonizerProgressListener} from "./PeptonizerProgressListener.ts";
 import { Peptonizer } from "./Peptonizer.ts";
 import {PeptonizerInputParser} from "./PeptonizerInputParser.ts";
+import {WorkerPool} from "./workers/WorkerPool.ts";
+import { isReadonlyKeywordOrPlusOrMinusToken } from 'typescript';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML= `
   <div id="app">
@@ -179,14 +181,23 @@ const startToPeptonize = async function() {
     const [peptidesScores, peptidesCounts] = PeptonizerInputParser.parse(fileContents);
 
     try {
+        
+        let workerPool = new WorkerPool(1);
+        const rank: string = "species";
+        const taxonQuery: number[] = [2, 3];
+        const peptidesTaxaString = await workerPool.fetchUnipeptTaxonInfo(peptidesScores, rank, taxonQuery);
+
+        const peptidesTaxaJson = JSON.parse(peptidesTaxaString);
+        const peptidesTaxa: Map<string, number[]> = new Map(Object.entries(peptidesTaxaJson));
+
         const peptonizerResult = await peptonizer.peptonize(
+            peptidesTaxa,
             peptidesScores,
             peptidesCounts,
             alphas,
             betas,
             priors,
             "species",
-            [1],
             50,
             new ProgressListener(document.getElementById("progress-view")!, 2)
         );

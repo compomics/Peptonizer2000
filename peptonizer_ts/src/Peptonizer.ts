@@ -12,6 +12,8 @@ class Peptonizer {
      * PSMS including their intensities are then used as input to the Peptonizer-pipeline. This pipeline will finally
      * return a Map in which NCBI taxon IDs are mapped onto their probabilities (as computed by the Peptonizer).
      *
+     * @param peptidesTaxa Mapping between peptides and the associated taxa. If a filtering by taxa (or another
+     * criterium) is required, this needs to be done before passing this mapping to this function.
      * @param peptidesScores Mapping between the peptide sequences that should be present in the peptonizer and a scoring
      * metric (derived from a prior search engine step) for each peptide.
      * @param peptidesCounts Mapping between peptide sequences and the amount of times they occur in the input.
@@ -22,8 +24,6 @@ class Peptonizer {
      * @param priors An array of possible values for the gamma (or prior) parameter. Gamma indicates the prior probability
      * of a taxon being present.
      * @param rank At which NCBI taxonomic rank should the Peptonizer perform the taxonomic inference.
-     * @param taxonQuery a list of NCBI IDs that should be used for filtering the taxa that are considered by the
-     * Peptonizer in its graph.
      * @param taxaInGraph How many taxa are being used in the graphical model?
      * @param progressListener Is called everytime the progress of the belief propagation algorithm has been updated.
      * @param workers The amount of Web Workers that can be spawned and used simultaneously to run the Peptonizer.
@@ -31,13 +31,13 @@ class Peptonizer {
      * Peptonizer was cancelled before it was completed, it returns an undefined result set.
      */
     async peptonize(
+        peptidesTaxa: Map<string, number[]>,
         peptidesScores: Map<string, number>,
         peptidesCounts: Map<string, number>,
         alphas: number[],
         betas: number[],
         priors: number[],
         rank: string = "species",
-        taxonQuery: number[] = [1],
         taxaInGraph: number = 100,
         progressListener?: PeptonizerProgressListener,
         workers: number = 2
@@ -63,15 +63,14 @@ class Peptonizer {
             // Notify any listeners that the Peptonizer did start running (and report which set of parameters will be tuned)
             progressListener?.peptonizerStarted(parameterSets.length, parameterSets);
 
-            const unipept_json = await this.workerPool.fetchUnipeptTaxonInfo(peptidesScores, rank, taxonQuery);
+            // const unipept_json = await this.workerPool.fetchUnipeptTaxonInfo(peptidesScores, rank, taxonQuery);
 
             const taxonWeighingResult = await this.workerPool.performTaxaWeighing(
+                peptidesTaxa,
                 peptidesScores,
                 peptidesCounts,
-                unipept_json,
                 rank,
-                taxaInGraph,
-                taxonQuery
+                taxaInGraph
             );
 
             if (this.isCancelled) {

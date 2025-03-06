@@ -4,7 +4,7 @@ from .unipept_communicator import UnipeptCommunicator
 
 def fetch_peptides_and_filter_taxa(
     peptides: List[str],
-    taxonomy_query: str,
+    taxonomy_query: List[int],
     rank: str,
     unipept_communicator: UnipeptCommunicator,
 ) -> Dict[str, List[int]]:
@@ -13,8 +13,7 @@ def fetch_peptides_and_filter_taxa(
 
     # Then, we make sure to filter the taxa and only keep those that are associated to the taxa of interest indicated by
     # the user.
-
-    taxon_query_ids = [int(item) for item in taxonomy_query.split(",")]
+    taxon_query_ids = [int(item) for item in str(taxonomy_query).split(",")]
 
     # Retrieve all (in)direct children of the filter taxa provided by the user
     taxa_filter = set(unipept_communicator.get_descendants_for_taxa(taxon_query_ids, rank))

@@ -17,8 +17,8 @@ class UnipeptCommunicator:
     """
 
     UNIPEPT_URL = "https://api.unipept.ugent.be"
-    UNIPEPT_PEPT2FILTERED_ENDPOINT = "/mpa/pept2filtered.json"
-    UNIPEPT_TAXONOMY_ENDPOINT = "/api/v2/taxonomy.json"
+    UNIPEPT_PEPT2FILTERED_ENDPOINT = "/api/v2/pept2taxa"
+    UNIPEPT_TAXONOMY_ENDPOINT = "/api/v2/taxonomy"
 
     UNIPEPT_PEPTIDES_BATCH_SIZE = 2000
     TAXONOMY_ENDPOINT_BATCH_SIZE = 100
@@ -49,7 +49,8 @@ class UnipeptCommunicator:
 
             # Prepare the request payload
             payload = {
-                "peptides": batch,
+                "input": batch,
+                "compact": True,
                 "tryptic": True
             }
 
@@ -59,9 +60,9 @@ class UnipeptCommunicator:
             # Check if the request was successful
             if response.status_code == 200:
                 data = response.json()
-                for peptide_data in data.get("peptides", []):
+                for peptide_data in data:
                     original_taxa = peptide_data.get("taxa", [])
-                    output[peptide_data["sequence"]] = original_taxa
+                    output[peptide_data["peptide"]] = original_taxa
             else:
                 raise CommunicationException(f"Status code returned by Unipept API was {response.status_code}")
 

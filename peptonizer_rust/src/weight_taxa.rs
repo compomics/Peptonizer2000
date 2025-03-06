@@ -7,22 +7,23 @@ use crate::taxon_manager::TaxonManager;
 /// Weight inferred taxa based on their (1) degeneracy and (2) their proteome size.
 /// Parameters
 pub fn perform_taxa_weighing(
-    unipept_responses: String,
+    pep_taxa: String,
     pep_scores: String,
     pep_psm_counts: String,
     max_taxa: usize,
     taxa_rank: String
 ) -> (String, String) {
     log("Parsing Unipept responses from disk...");
-    let unipept_responses: Vec<UnipeptJson> = serde_json::from_str(&unipept_responses).unwrap();
+    let pep_taxa: HashMap<String, Vec<i32>> = serde_json::from_str(&pep_taxa).unwrap();
 
-    let sequences: Vec<String> = unipept_responses.iter().map(|response| response.sequence.to_owned()).collect();
+    let sequences: Vec<String> = pep_taxa.iter().map(|(seq, taxa)| seq.to_owned()).collect();
 
-    let mut taxa: Vec<Vec<i32>> = unipept_responses.into_iter().map(|response| response.taxa).collect();
+    let mut taxa: Vec<Vec<i32>> = pep_taxa.into_iter().map(|(seq, taxa)| taxa).collect();
     
     log("Started mapping all taxon ids to the specified rank...");
     normalize_unipept_responses(&mut taxa, &taxa_rank);
-    let chosen_idx: HashSet<usize> = weighted_random_sample(&taxa, 10000);
+    log(&format!("taxa len: {}", taxa.len()));
+    let chosen_idx: HashSet<usize> = weighted_random_sample(&taxa, 10000); //TODO: what if < 10000 or close to 10000 + hardcoded not a good idea
 
     log(&format!("Using {} sequences as input...", chosen_idx.len()));
 

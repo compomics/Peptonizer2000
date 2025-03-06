@@ -23,7 +23,6 @@ mod wasm {
     use wasm_bindgen::prelude::*;
     use crate::weight_taxa::perform_taxa_weighing;
     use crate::zero_lookahead_belief_propagation::run_belief_propagation;
-    use crate::utils::log;
 
     extern crate wasm_bindgen;
     extern crate web_sys;
@@ -32,15 +31,13 @@ mod wasm {
 
     #[wasm_bindgen]
     pub fn perform_taxa_weighing_wasm(
-        unipept_responses: String,
+        pep_taxa: String,
         pep_scores: String,
         pep_psm_counts: String,
         max_taxa: usize,
         taxa_rank: String
     ) -> Box<[JsValue]> {
-        log("1");
-        let (sequence_csv, taxa_weights_csv): (String, String) = perform_taxa_weighing(unipept_responses, pep_scores, pep_psm_counts, max_taxa, taxa_rank);
-        log("2");
+        let (sequence_csv, taxa_weights_csv): (String, String) = perform_taxa_weighing(pep_taxa, pep_scores, pep_psm_counts, max_taxa, taxa_rank);
         Box::new([JsValue::from(sequence_csv), JsValue::from(taxa_weights_csv)])
     }
 

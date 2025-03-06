@@ -21,9 +21,3 @@ pub fn log(s: &str) {
 pub fn error(s: &str) {
     eprintln!("{}", s);
 }
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct UnipeptJson {
-    pub sequence: String,
-    pub taxa: Vec<i32>,
-}
