@@ -139,14 +139,14 @@ async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promi
 
     const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
     console.log(taxonScoresJson);
-    
-    /*self.pyodide.globals.set('graph', data.graphXml);
+
+    self.pyodide.globals.set('graph', data.graphXml);
     self.pyodide.globals.set('alpha', data.alpha);
     self.pyodide.globals.set('beta', data.beta);
     self.pyodide.globals.set('prior', data.prior);
     self.pyodide.globals.set('worker_id', workerId);
 
-    const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);*/
+    const taxonScoresJson_py = await self.pyodide.runPythonAsync(executePepgmPythonCode);
 
     return {
         taxonScoresJson

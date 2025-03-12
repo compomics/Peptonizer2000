@@ -155,18 +155,21 @@ class CTFactorGraph(FactorGraph):
 
         # Fill all info into graph structure, should probably do this inside the loop before, so that i can initialize
         # the messages
+        # TODO: ask if factor nodes nodes must have unique neighbours, now, only the first one is added, the rest not.
+        #       This part is changed to also insert nodes with duplicate neighbours.
         for i in range(len(list_of_cts)):
             self.add_node(
-                "CTree " + " ".join(str(list_of_prot_lists[i])),
+                "CTree " + str(i) + " ".join(str(list_of_prot_lists[i])),
                 category="convolution_tree",
                 NumberOfParents=len(list_of_prot_lists[i]),
             )
             self.add_edge(
-                "CTree " + " ".join(str(list_of_prot_lists[i])),
+                "CTree " + str(i) + " ".join(str(list_of_prot_lists[i])),
                 list_of_factors[i],
                 MessageLength=len(list_of_prot_lists[i]) + 1,
             )
-            self.add_edges_from(list_of_edge_add_list[i])
+            prot_list = list_of_prot_lists[i]
+            self.add_edges_from([("CTree " + str(i) + " ".join(str(prot_list)), x) for x in prot_list])
             self.remove_edges_from(list_of_edge_remove_list[i])
 
     def save_to_graph_ml(self, filename):

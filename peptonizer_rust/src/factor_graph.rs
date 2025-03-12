@@ -153,35 +153,34 @@ impl CTFactorGraph {
         let mut next_edge_id: i32 = self.edges.len() as i32;
         let mut next_node_id: i32 = self.nodes.len() as i32;
         for node in &self.nodes {
-            if node.is_factor_node() {
-                if node.neighbors_count() > 2 {
+            if node.is_factor_node() && node.neighbors_count() > 2 {
 
-                    let mut prot_names: Vec<String> = Vec::new();
-                    let mut prot_ids: Vec<i32> = Vec::new();
-                    for neighbor_id in self.get_neighbors(node) {
-                        let neighbor: &Node = &self.nodes[neighbor_id as usize];
-                        if neighbor.is_taxon_node() {
-                            prot_ids.push(neighbor_id);
-                            prot_names.push(neighbor.get_name().to_string());
-                        }
+                let mut prot_names: Vec<String> = Vec::new();
+                let mut prot_ids: Vec<i32> = Vec::new();
+                for neighbor_id in self.get_neighbors(node) {
+                    let neighbor: &Node = &self.nodes[neighbor_id as usize];
+                    if neighbor.is_taxon_node() {
+                        prot_ids.push(neighbor_id);
+                        prot_names.push(neighbor.get_name().to_string());
                     }
-                    
-                    let new_node_name = format!("CTree {}", prot_names.join(" "));
-                    let new_node_id = next_node_id;
-                    let new_node = Node::new_convolution_node(new_node_id, new_node_name, prot_ids.len() as i32);
-                    next_node_id += 1;
-                    nodes_to_add.push(new_node);
+                }
+                
+                // TODO: names necessary?
+                let new_node_name = format!("CTree {}", prot_names.join(" "));
+                let new_node_id = next_node_id;
+                let new_node = Node::new_convolution_node(new_node_id, new_node_name, prot_ids.len() as i32);
+                next_node_id += 1;
+                nodes_to_add.push(new_node);
 
-                    let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: node.get_id(), message_length: Some(prot_ids.len() as i32 + 1) };
+                let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: node.get_id(), message_length: Some(prot_ids.len() as i32 + 1) };
+                next_edge_id += 1;
+                edges_to_add.push(edge);
+                for neighbor_id in prot_ids {
+                    let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: neighbor_id, message_length: None };
                     next_edge_id += 1;
                     edges_to_add.push(edge);
-                    for neighbor_id in prot_ids {
-                        let edge = Edge { id: next_edge_id, node1_id: new_node_id, node2_id: neighbor_id, message_length: None };
-                        next_edge_id += 1;
-                        edges_to_add.push(edge);
-                        edges_to_remove.insert((node.get_id(), neighbor_id));
-                        edges_to_remove.insert((neighbor_id, node.get_id()));
-                    }
+                    edges_to_remove.insert((node.get_id(), neighbor_id));
+                    edges_to_remove.insert((neighbor_id, node.get_id()));
                 }
                 
             }
@@ -243,8 +242,6 @@ impl CTFactorGraph {
                 old_to_new_nodes.insert(start_node.get_id(), 0);
                 self.find_component_rec(start_node.get_id(), &mut component_ids, &mut old_to_new_nodes, &mut visited);
 
-                // log(&format!("{}", component_ids.len())); = 24000
-
                 // Create new nodes
                 for node_id in &component_ids {
                     let node = self.nodes[*node_id as usize].copy_with_id(old_to_new_nodes[&node_id]);
@@ -277,7 +274,6 @@ impl CTFactorGraph {
                     node.set_incident_edges(new_incident_edges);
                 }
                 
-                log(&format!("{}", new_nodes.len()));
                 // Create graph and add to components
                 let subgraph = Self { nodes: new_nodes, edges: new_edges };
                 components.push(subgraph);
