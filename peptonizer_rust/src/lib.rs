@@ -11,6 +11,7 @@ mod zero_lookahead_belief_propagation;
 mod node;
 mod factor_graph;
 mod messages;
+mod convolution_tree;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
