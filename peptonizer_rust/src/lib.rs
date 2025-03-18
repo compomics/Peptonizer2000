@@ -12,6 +12,7 @@ mod node;
 mod factor_graph;
 mod messages;
 mod convolution_tree;
+mod array_utils;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm::*;
@@ -29,6 +30,7 @@ mod wasm {
     extern crate web_sys;
     extern crate wasm_bindgen_futures;
     extern crate js_sys;
+    extern crate console_error_panic_hook;
 
     #[wasm_bindgen]
     pub fn perform_taxa_weighing_wasm(
@@ -52,6 +54,7 @@ mod wasm {
         max_iter: Option<i32>,
         tol: Option<f64>
     ) -> String {
+        console_error_panic_hook::set_once(); // Enable panic logging
         let max_iter: i32 = max_iter.unwrap_or(10000);
         let tol: f64 = tol.unwrap_or(0.006);
         

@@ -137,8 +137,8 @@ async function generateGraph(data: GenerateGraphTaskData): Promise<GenerateGraph
 
 async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promise<ExecutePepgmTaskDataResult> {
 
-    /*const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
-    console.log(taxonScoresJson);*/
+    const taxonScoresJson = run_belief_propagation_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
+    console.log(taxonScoresJson);
 
     self.pyodide.globals.set('graph', data.graphXml);
     self.pyodide.globals.set('alpha', data.alpha);

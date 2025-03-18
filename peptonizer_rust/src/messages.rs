@@ -3,6 +3,8 @@ use crate::node::{Node, NodeType};
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use crate::utils::log;
+use crate::array_utils::*;
+use crate::convolution_tree::ConvolutionTree;
 
 #[derive(Debug, Clone)]
 pub enum NodeBelief {
@@ -146,11 +148,15 @@ impl Messages {
         match start_node.get_subtype() {
             NodeType::TaxonNode { .. } | NodeType::PeptideNode { .. } => {
                 let new_message = self.compute_out_message_variable(start_id, end_id, end_in_start_id);
-                self.msg_in_new[end_id as usize][end_in_start_id as usize] = new_message;
+                let end_node: &Node = self.graph.get_node(end_id);
+                let start_in_end_id = self.graph.get_neighbors(end_node).iter().position(|neighbor_id| *neighbor_id == start_id).unwrap();
+                self.msg_in_new[end_id as usize][start_in_end_id] = new_message;
             },
             NodeType::FactorNode { .. } => {
                 let new_message = self.compute_out_message_factor(start_id, end_id, end_in_start_id);
-                self.msg_in_new[end_id as usize][end_in_start_id as usize] = new_message;
+                let end_node: &Node = self.graph.get_node(end_id);
+                let start_in_end_id = self.graph.get_neighbors(end_node).iter().position(|neighbor_id| *neighbor_id == start_id).unwrap();
+                self.msg_in_new[end_id as usize][start_in_end_id] = new_message;
             },
             NodeType::ConvolutionTreeNode { .. } => 
                 if ! checked_cts.contains(&start_id) {
@@ -158,23 +164,6 @@ impl Messages {
                     checked_cts.insert(start_id);
                 }
         };
-    }
-
-    fn normalize(mut array: Vec<f64>) -> Vec<f64> {
-        let sum: f64 = array.iter().sum();
-        for val in array.iter_mut() {
-            *val /= sum;
-        }
-        array
-    }
-    
-    fn log_normalize(mut array: Vec<f64>) -> Vec<f64> {
-        let max_val = array.iter().cloned().fold(f64::NEG_INFINITY, f64::max); // Find the max value to prevent overflow
-        let log_sum_exp = array.iter().map(|&x| (x - max_val).exp()).sum::<f64>().ln(); // Calculate logsumexp
-    
-        array.iter_mut()
-            .map(|&mut x| (x - max_val - log_sum_exp).exp()) // Log-normalize and apply exp to each element
-            .collect()
     }
 
     fn compute_out_message_variable(&mut self, start_id: i32, end_id: i32, end_in_start_id: i32) -> Vec<f64> {
@@ -211,7 +200,7 @@ impl Messages {
         let node_belief_log: Vec<f64> = node_belief.iter().map(|&x| x.ln()).collect();
 
         // Compute final log-normalized message
-        let mut out_message_log: Vec<f64> = Self::log_normalize(
+        let mut out_message_log: Vec<f64> = log_normalize(
             node_belief_log.iter().zip(sum_logs.iter()).map(|(&a, &b)| a + b).collect()
         );
 
@@ -237,7 +226,7 @@ impl Messages {
                 let prod: Vec<f64> = incoming_messages_end.iter().fold(vec![1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
                 
                 // Compute final normalized message
-                let mut out_message: Vec<f64> = Self::normalize(
+                let mut out_message: Vec<f64> = normalize(
                     node_belief.iter().zip(prod.iter()).map(|(&a, &b)| a * b).collect(),
                 );
 
@@ -250,7 +239,7 @@ impl Messages {
                     let incoming_messages_log: Vec<f64> = incoming_messages_end[0].iter().map(|&x| x.ln()).collect();
                     let node_belief_log: Vec<f64> = node_belief.iter().map(|&x| x.ln()).collect();
 
-                    let mut out_message_log: Vec<f64> = Self::log_normalize(
+                    let mut out_message_log: Vec<f64> = log_normalize(
                         node_belief_log.iter().zip(incoming_messages_log.iter()).map(|(&a, &b)| a + b).collect()
                     );
 
@@ -266,7 +255,7 @@ impl Messages {
                     let prod: Vec<f64> = incoming_messages_end.iter().fold(vec![1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
 
                     // Compute final normalized message
-                    let mut out_message: Vec<f64> = Self::normalize(
+                    let mut out_message: Vec<f64> = normalize(
                         node_belief.iter().zip(prod.iter()).map(|(&a, &b)| a * b).collect(),
                     );
 
@@ -292,6 +281,7 @@ impl Messages {
         for (neighbor_id_in_start, &neighbor_id) in self.graph.get_neighbors(start_node).iter().enumerate() {
             let neighbor = self.graph.get_node(neighbor_id);
             match neighbor.get_subtype() {
+                
                 NodeType::FactorNode { .. } => {
                     prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
                     old_prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
@@ -314,7 +304,7 @@ impl Messages {
 
         if let Some(neighbor_id) = last_neighbor_id {
             // Prevent underflow: Replace zeros with 1e-30
-            shared_likelihoods.iter_mut().for_each(|x| if *x == 0.0 { *x = 1e-30 });
+            shared_likelihoods = avoid_underflow(shared_likelihoods);
             old_shared_likelihoods = shared_likelihoods.iter()
                 .zip(self.msg_in_log[start_id as usize][neighbor_id].iter())
                 .map(|(a, b)| a * b).collect();
@@ -322,8 +312,29 @@ impl Messages {
 
         // TODO: revision this
         if old_shared_likelihoods != shared_likelihoods && prot_prob_list != old_prot_prob_list {
+            let convolution_tree = ConvolutionTree::new(shared_likelihoods, prot_prob_list);
 
+            for (protein_id, protein) in prot_list.iter().enumerate() {
+                let node_neighbor_index = self.graph.get_neighbors_from_id(*protein).iter().position(|&x| x == start_id).unwrap();
+                self.msg_in_new[*protein as usize][node_neighbor_index] = avoid_underflow(convolution_tree.message_to_variable(protein_id));
+            }
 
+            for pep in peptides {
+                let node_neighbor_index = self.graph.get_neighbors_from_id(pep).iter().position(|&x| x == start_id).unwrap();
+                self.msg_in_new[pep as usize][node_neighbor_index] = avoid_underflow(convolution_tree.message_to_shared_likelihood());
+            }
+
+        } else {
+            
+            for protein in prot_list {
+                let node_neighbor_index = self.graph.get_neighbors_from_id(protein).iter().position(|&x| x == start_id).unwrap();
+                self.msg_in_new[protein as usize][node_neighbor_index] = self.msg_in[protein as usize][node_neighbor_index].clone();
+            }
+
+            for pep in peptides {
+                let node_neighbor_index = self.graph.get_neighbors_from_id(pep).iter().position(|&x| x == start_id).unwrap();
+                self.msg_in_new[pep as usize][node_neighbor_index] = self.msg_in[pep as usize][node_neighbor_index].clone();
+            }
         }
     }
 }

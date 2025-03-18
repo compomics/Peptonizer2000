@@ -131,6 +131,10 @@ impl CTFactorGraph {
         }
     }
 
+    pub fn get_neighbors_from_id(&self, node_id: i32) -> Vec<i32> {
+        self.get_neighbors(self.get_node(node_id))
+    }
+
     pub fn get_neighbors(&self, node: &Node) -> Vec<i32> {
         let mut neighbors = Vec::with_capacity(node.neighbors_count() as usize);
         for edge_id in node.get_incident_edges() {
