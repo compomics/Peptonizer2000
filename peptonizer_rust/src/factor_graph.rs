@@ -146,6 +146,11 @@ impl CTFactorGraph {
         neighbors
     }
 
+    pub fn get_neighbor_node_id(&self, node: &Node, neighbor_id: i32) -> i32 {
+        let (node1_id, node2_id) = self.edges[node.get_incident_edge(neighbor_id) as usize].get_node_ids();
+        if node1_id == node.get_id() { node2_id } else { node1_id }
+    }
+
     pub fn add_ct_nodes(&mut self) {
         // When creating the CTGraph and not just reading from a previously saved graph format, use this function to add the CT nodes
         

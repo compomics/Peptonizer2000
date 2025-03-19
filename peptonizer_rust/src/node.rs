@@ -63,6 +63,10 @@ impl Node {
         self.incident_edges.len()
     }
 
+    pub fn get_incident_edge(&self, neighbor_id: i32) -> i32 {
+        self.incident_edges[neighbor_id as usize]
+    }
+
     pub fn get_incident_edges(&self) -> &Vec<i32> {
         &self.incident_edges
     }

@@ -494,7 +494,6 @@ class Messages:
 
             self.single_edge_direction_update(start_node, end_node, set())
 
-            # TODO: should this not be after updating messages? (uses msg_in and msg_log)
             priority_residual = self.compute_infinity_norm_residual(start_node, end_node)
             for node in prev_changed:
                 self.msg_in_log[node] = self.msg_in[node].copy()

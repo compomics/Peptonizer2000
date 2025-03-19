@@ -1,5 +1,6 @@
 use crate::factor_graph::CTFactorGraph;
 use crate::node::{Node, NodeType};
+use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::mem;
 use crate::utils::log;
@@ -32,13 +33,20 @@ impl NodeBelief {
             NodeBelief::ConvolutionTreeBelief => vec![],
         }
     }
+
+    pub fn factor_values(&self) -> Option<Vec<[f64; 2]>> {
+        match self {
+            NodeBelief::FactorBelief(vec) => Some(vec.clone()),
+            _ => None
+        }
+    }
 }
 
 pub struct Messages {
     graph: CTFactorGraph,
     max_val: Option<(i32, i32)>,
-    priorities: HashMap<i32, f64>,
-    // Keeps track of residuals for duos of directed edges, indexed by [start node][id of end node in start neighbours][id of neighbour in end node]
+    priorities: HashMap<(i32, i32), f64>,
+    // Keeps track of residuals for duos of directed edges, indexed by [end_node][id of start node in end neighbours][id of neighbour in end node]
     total_residuals: Vec<Vec<Vec<f64>>>, 
     // Maps a node ID onto its current belief value
     current_beliefs: Vec<NodeBelief>, 
@@ -53,16 +61,12 @@ impl Messages {
     pub fn new(ct_graph_in: CTFactorGraph) -> Messages {
         let max_val: Option<(i32, i32)> = None;
         
-        // TODO
         let priorities = HashMap::new();
 
         let mut total_residuals: Vec<Vec<Vec<f64>>> = Vec::with_capacity(ct_graph_in.node_count());
         for node in ct_graph_in.get_nodes() {
             
-            let mut total_residual_node: Vec<Vec<f64>> = Vec::with_capacity(node.neighbors_count());
-            for neighbor in ct_graph_in.get_neighbors(node) {
-                total_residual_node.push(vec![0.0; ct_graph_in.get_node(neighbor).neighbors_count()]);
-            }
+            let total_residual_node: Vec<Vec<f64>> = vec![vec![0.0; node.neighbors_count()]; node.neighbors_count()];
 
             total_residuals.push(total_residual_node);
 
@@ -109,11 +113,70 @@ impl Messages {
         // first, do 5 loops where I update all messages
         for _ in 0..5 {
             self.compute_update(false);
+
             let temp = mem::replace(&mut self.msg_in_log, mem::take(&mut self.msg_in));
             self.msg_in = mem::take(&mut self.msg_in_new);
             self.msg_in_new = temp;
         }
 
+        // compute all residuals after 5 runs once (= initialize the residual/priorities vectors)
+        for node_id in 0..self.graph.node_count() {
+            let node = self.graph.get_node(node_id as i32);
+            for neighbor_id in 0..node.neighbors_count() {
+                let residual = self.compute_infinity_norm_residual(node_id, neighbor_id);
+                self.priorities.insert((node_id as i32, neighbor_id as i32), residual);
+            }
+        }
+
+        let mut k = 5;
+
+        // keep track of the nodes of which the incoming messages have changed
+        let mut prev_changed: Vec<usize> = (0..self.msg_in.len()).collect();
+
+        while k < max_loops && max_residual > tolerance {
+
+            // actual zero-look-ahead-BP part
+            let (&(end_id, start_in_end_id), &residual) = self.priorities.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap();
+            log(&format!("{} {} {}", end_id, start_in_end_id, residual));
+            
+            let end_node = self.graph.get_node(end_id);
+            let start_id = self.graph.get_neighbor_node_id(end_node, start_in_end_id);
+
+            self.single_message_update(start_id, end_id, start_in_end_id, None);
+
+            let priority_residual = self.compute_infinity_norm_residual(end_id as usize, start_in_end_id as usize);
+            for node_id in prev_changed {
+                let msg: Vec<Vec<f64>> = self.msg_in[node_id].clone();
+                self.msg_in_log[node_id] = msg;
+            }
+            prev_changed = Vec::new();
+
+            // if the start node is a convolution tree, all the incoming messages of the neighbours can be changed.
+            let start_node = self.graph.get_node(start_id);
+            match start_node.get_subtype() {
+                NodeType::ConvolutionTreeNode { .. } => {
+                    // TODO: shouldn't on both levels be added to prev_changed and change in msg_in?
+                    for neighbor_id in self.graph.get_neighbors(start_node) {
+                        let neighbor = self.graph.get_node(neighbor_id);
+                        prev_changed.push(neighbor_id as usize);
+                        for i in 0..neighbor.neighbors_count() {
+                            self.msg_in[neighbor_id as usize][i] = self.msg_in_new[neighbor_id as usize][i].clone();
+                        }
+                    }
+                },
+                _ => {
+                    self.msg_in[end_id as usize][start_in_end_id as usize] = self.msg_in_new[end_id as usize][start_in_end_id as usize].clone();
+                    prev_changed.push(end_id as usize);
+                }
+            }
+
+            self.compute_total_residuals(start_id, end_id, start_in_end_id, priority_residual);
+            self.compute_priority(start_id, end_id, start_in_end_id);
+
+            k += 1;
+        }
+
+        log(&format!("{}", k));
         self.current_beliefs.clone()
     }
 
@@ -125,7 +188,7 @@ impl Messages {
             let (_, start_id) = self.max_val.unwrap();
             let start_node = self.graph.get_node(start_id);
             for (end_in_start_id, end_id) in self.graph.get_neighbors(start_node).iter().enumerate() {
-                self.single_message_update(start_id, *end_id, end_in_start_id as i32, &mut checked_cts);
+                self.single_message_update(start_id, *end_id, end_in_start_id as i32, Some(&mut checked_cts));
             }
 
         } else {
@@ -134,14 +197,14 @@ impl Messages {
                 let id = id as i32;
                 let start_node = self.graph.get_node(id);
                 for (end_in_start_id, end_id) in self.graph.get_neighbors(start_node).iter().enumerate() {
-                    self.single_message_update(id, *end_id, end_in_start_id as i32, &mut checked_cts);
+                    self.single_message_update(id, *end_id, end_in_start_id as i32, Some(&mut checked_cts));
                 }
             }
 
         }
     }
 
-    fn single_message_update(&mut self, start_id: i32, end_id: i32, end_in_start_id: i32, checked_cts: &mut HashSet<i32>) {
+    fn single_message_update(&mut self, start_id: i32, end_id: i32, end_in_start_id: i32, mut checked_cts: Option<&mut HashSet<i32>>) {
 
         let start_node: &Node = self.graph.get_node(start_id);
 
@@ -158,10 +221,12 @@ impl Messages {
                 let start_in_end_id = self.graph.get_neighbors(end_node).iter().position(|neighbor_id| *neighbor_id == start_id).unwrap();
                 self.msg_in_new[end_id as usize][start_in_end_id] = new_message;
             },
-            NodeType::ConvolutionTreeNode { .. } => 
-                if ! checked_cts.contains(&start_id) {
-                    self.compute_out_messages_ct_tree(start_id);
-                    checked_cts.insert(start_id);
+            NodeType::ConvolutionTreeNode { number_of_parents } => 
+                if checked_cts.as_ref().map_or(true, |set| ! set.contains(&start_id)) {
+                    self.compute_out_messages_ct_tree(start_id, *number_of_parents);
+                    if let Some(set) = checked_cts.as_mut() {
+                        set.insert(start_id);
+                    }
                 }
         };
     }
@@ -177,7 +242,11 @@ impl Messages {
         if incoming_messages_end.len() == 0 {
             // TODO: check in Python code the idea of the any statement (ask Tanja)
             let start_in_end_id = self.graph.get_neighbors(end_node).iter().position(|neighbor_id| *neighbor_id == start_id).unwrap();
-            return self.msg_in[end_id as usize][start_in_end_id as usize].clone();
+            if node_belief == get_initial_belief(end_node).values() { 
+                return node_belief; 
+            } else { 
+                return self.msg_in[end_id as usize][start_in_end_id as usize].clone();
+            }
         }
 
         // need for logs to prevent underflow in very large multiplications
@@ -186,13 +255,6 @@ impl Messages {
         .map(|msg| msg.iter().map(|&x| x.ln()).collect())
         .collect();
 
-        // TODO: remove if this doesn't print
-        for i in 0..incoming_messages_end.len() {
-            if incoming_messages_end[i].len() != 2 {
-                log("WRONG LENGTH");
-            }
-        }
-
         // Sum of incoming messages
         let sum_logs: Vec<f64> = incoming_messages_end.iter().fold(vec![0.0;2], |mut acc,  row| {acc[0] += row[0]; acc[1] += row[1]; acc});
 
@@ -200,9 +262,8 @@ impl Messages {
         let node_belief_log: Vec<f64> = node_belief.iter().map(|&x| x.ln()).collect();
 
         // Compute final log-normalized message
-        let mut out_message_log: Vec<f64> = log_normalize(
-            node_belief_log.iter().zip(sum_logs.iter()).map(|(&a, &b)| a + b).collect()
-        );
+        let mut out_message_log: Vec<f64> = node_belief_log.iter().zip(sum_logs.iter()).map(|(&a, &b)| a + b).collect();
+        log_normalize(&mut out_message_log);
 
         // Prevent underflow: Replace zeros with 1e-30
         out_message_log.iter_mut().for_each(|x| if *x == 0.0 { *x = 1e-30 });
@@ -215,7 +276,7 @@ impl Messages {
         let end_node = self.graph.get_node(end_id);
         let mut incoming_messages_end: Vec<Vec<f64>> = self.msg_in[start_id as usize].clone();
         incoming_messages_end.remove(end_in_start_id as usize);
-        let node_belief: Vec<f64> = self.current_beliefs[start_id as usize].values();
+        let node_belief: Vec<[f64;2]> = self.current_beliefs[start_id as usize].factor_values().unwrap();
 
         match end_node.get_subtype() {
             NodeType::ConvolutionTreeNode { .. } => {
@@ -223,55 +284,53 @@ impl Messages {
                 incoming_messages_end.push(vec![1.0, 1.0]);
                 
                 // Product of incoming messages
-                let prod: Vec<f64> = incoming_messages_end.iter().fold(vec![1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
+                let prod: [f64;2] = incoming_messages_end.iter().fold([1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
                 
                 // Compute final normalized message
-                let mut out_message: Vec<f64> = normalize(
-                    node_belief.iter().zip(prod.iter()).map(|(&a, &b)| a * b).collect(),
-                );
+                let mut out_message: Vec<[f64;2]> = node_belief.iter().map(|&a| [a[0] * prod[0], a[1] * prod[1]]).collect();
+                normalize_2d(&mut out_message);
+                let out_message_sum: Vec<f64> = out_message.iter().map(|[a, b]| a + b).collect();
 
-                return out_message;
-                // TODO: check shapes of previous variables (compare with python)
+                return out_message_sum;
             },
             _ => {
                 if incoming_messages_end[0].len() > 2 {
-                    // TODO check shapes
                     let incoming_messages_log: Vec<f64> = incoming_messages_end[0].iter().map(|&x| x.ln()).collect();
-                    let node_belief_log: Vec<f64> = node_belief.iter().map(|&x| x.ln()).collect();
+                    let node_belief_log: Vec<[f64;2]> = node_belief.iter().map(|&x| [x[0].ln(), x[1].ln()]).collect();
 
-                    let mut out_message_log: Vec<f64> = log_normalize(
-                        node_belief_log.iter().zip(incoming_messages_log.iter()).map(|(&a, &b)| a + b).collect()
-                    );
+                    let mut out_message_log: Vec<[f64;2]> = node_belief_log.iter().zip(incoming_messages_log.iter()).map(|(&a, &b)| [a[0] + b, a[1] + b]).collect();
+                    log_normalize_2d(&mut out_message_log);
 
+                    let mut out_message_sum: Vec<f64> = out_message_log.iter().take(2).map(|[a, b]| a + b).collect();
                     // Prevent underflow: Replace zeros with 1e-30
-                    out_message_log.iter_mut().for_each(|x| if *x == 0.0 { *x = 1e-30 });
+                    out_message_sum.iter_mut().for_each(|x| if *x == 0.0 { *x = 1e-30 });
 
-                    return out_message_log;
+                    return out_message_sum;
 
                 } else {
 
                     incoming_messages_end.push(vec![1.0, 1.0]);
 
-                    let prod: Vec<f64> = incoming_messages_end.iter().fold(vec![1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
+                    let prod: [f64;2] = incoming_messages_end.iter().fold([1.0;2], |mut acc,  row| {acc[0] *= row[0]; acc[1] *= row[1]; acc});
 
                     // Compute final normalized message
-                    let mut out_message: Vec<f64> = normalize(
-                        node_belief.iter().zip(prod.iter()).map(|(&a, &b)| a * b).collect(),
-                    );
+                    let mut out_message: Vec<[f64;2]> = node_belief.iter().map(|&a| [a[0] * prod[0], a[1] * prod[1]]).collect();
+                    normalize_2d(&mut out_message);
+                    let out_message_sum: Vec<f64> = out_message.iter().map(|[a, b]| a + b).collect();
 
-                    return out_message;
+                    return out_message_sum;
                 }
             }
         }
     }
 
-    fn compute_out_messages_ct_tree(&mut self, start_id: i32) {
+    fn compute_out_messages_ct_tree(&mut self, start_id: i32, number_of_parents: i32) {
         let start_node = self.graph.get_node(start_id);
 
         let mut prot_prob_list: Vec<Vec<f64>> = Vec::new();
         let mut old_prot_prob_list: Vec<Vec<f64>> = Vec::new();
 
-        let mut shared_likelihoods: Vec<f64> = Vec::new();
+        let mut shared_likelihoods: Vec<f64> = vec![1.0; number_of_parents as usize + 1];
         let mut old_shared_likelihoods: Vec<f64> = Vec::new();
 
         let mut peptides: Vec<i32> = Vec::new();
@@ -284,7 +343,7 @@ impl Messages {
                 
                 NodeType::FactorNode { .. } => {
                     prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
-                    old_prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
+                    old_prot_prob_list.push(self.msg_in_log[start_id as usize][neighbor_id_in_start].clone());
                     prot_list.push(neighbor_id);
                 },
                 _ => {
@@ -292,8 +351,7 @@ impl Messages {
                     
                     // Prevent underflow: Replace zeros with 1e-30
                     shared_likelihoods.iter_mut().for_each(|x| if *x == 0.0 { *x = 1e-30 });
-
-                    for (a, b) in shared_likelihoods.iter_mut().zip(self.msg_in_log[start_id as usize][neighbor_id_in_start].iter()) {
+                    for (a, b) in shared_likelihoods.iter_mut().zip(self.msg_in[start_id as usize][neighbor_id_in_start].iter()) {
                         *a *= b;
                     }
 
@@ -304,24 +362,27 @@ impl Messages {
 
         if let Some(neighbor_id) = last_neighbor_id {
             // Prevent underflow: Replace zeros with 1e-30
-            shared_likelihoods = avoid_underflow(shared_likelihoods);
+            avoid_underflow(&mut shared_likelihoods);
             old_shared_likelihoods = shared_likelihoods.iter()
                 .zip(self.msg_in_log[start_id as usize][neighbor_id].iter())
                 .map(|(a, b)| a * b).collect();
         }
 
-        // TODO: revision this
         if old_shared_likelihoods != shared_likelihoods && prot_prob_list != old_prot_prob_list {
             let convolution_tree = ConvolutionTree::new(shared_likelihoods, prot_prob_list);
 
             for (protein_id, protein) in prot_list.iter().enumerate() {
                 let node_neighbor_index = self.graph.get_neighbors_from_id(*protein).iter().position(|&x| x == start_id).unwrap();
-                self.msg_in_new[*protein as usize][node_neighbor_index] = avoid_underflow(convolution_tree.message_to_variable(protein_id));
+                let mut new_message = convolution_tree.message_to_variable(protein_id);
+                avoid_underflow(&mut new_message);
+                self.msg_in_new[*protein as usize][node_neighbor_index] = new_message;
             }
 
             for pep in peptides {
                 let node_neighbor_index = self.graph.get_neighbors_from_id(pep).iter().position(|&x| x == start_id).unwrap();
-                self.msg_in_new[pep as usize][node_neighbor_index] = avoid_underflow(convolution_tree.message_to_shared_likelihood());
+                let mut new_message = convolution_tree.message_to_shared_likelihood();
+                avoid_underflow(&mut new_message);
+                self.msg_in_new[pep as usize][node_neighbor_index] = new_message;
             }
 
         } else {
@@ -334,6 +395,70 @@ impl Messages {
             for pep in peptides {
                 let node_neighbor_index = self.graph.get_neighbors_from_id(pep).iter().position(|&x| x == start_id).unwrap();
                 self.msg_in_new[pep as usize][node_neighbor_index] = self.msg_in[pep as usize][node_neighbor_index].clone();
+            }
+        }
+    }
+
+    fn compute_infinity_norm_residual(&mut self, end_id: usize, start_in_end_id: usize) -> f64 {
+        let msg1: &mut Vec<f64> = &mut self.msg_in[end_id][start_in_end_id];
+        let msg2: &mut Vec<f64> = &mut self.msg_in_log[end_id][start_in_end_id];
+
+        if msg1.len() != msg2.len() {
+            *msg2 = vec![1.0; msg1.len()];
+        }
+
+        avoid_underflow(msg1);
+
+        let residual = msg1.iter()
+                           .zip(msg2.iter())
+                           .map(|(m1, m2)| (m1 / m2).ln().abs())
+                           .fold(f64::NEG_INFINITY, f64::max);
+
+        residual
+    }
+
+    fn compute_total_residuals(&mut self, start_id: i32, end_id: i32, start_in_end_id: i32, current_residual: f64) {
+        let start_node = self.graph.get_node(start_id);
+        let end_node = self.graph.get_node(end_id);
+
+        let end_in_start_id = self.graph.get_neighbors(start_node).iter().position(|id| *id == end_id).unwrap();
+
+        for (i, &neighbor_id) in self.graph.get_neighbors(start_node).iter().enumerate() {
+            if neighbor_id != end_id {
+                self.total_residuals[start_id as usize][i][end_in_start_id] = 0.0;
+            }
+        }
+
+        for (i, &neighbor_id) in self.graph.get_neighbors(end_node).iter().enumerate() {
+            if neighbor_id != start_id {
+                self.total_residuals[end_id as usize][start_in_end_id as usize][i] += current_residual;
+            }
+        }
+    }
+
+    fn compute_priority(&mut self, start_id: i32, end_id: i32, start_in_end_id: i32) {
+        let start_node = self.graph.get_node(start_id);
+        let end_node = self.graph.get_node(end_id);
+
+        let priority = self.priorities.get_mut(&(end_id, start_in_end_id)).unwrap();
+        *priority = 0.0;
+
+        for (i, &neighbor_id) in self.graph.get_neighbors(end_node).iter().enumerate() {
+            if neighbor_id != start_id {
+                let neighbor_node = self.graph.get_node(neighbor_id);
+                let end_in_neighbor_id = self.graph.get_neighbors(neighbor_node).iter().position(|id| *id == end_id).unwrap();
+                let priority = self.priorities.get_mut(&(neighbor_id, end_in_neighbor_id as i32)).unwrap();
+                *priority = self.graph
+                    .get_neighbors(end_node)
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &sum_run)| {
+                        if sum_run != neighbor_id { 
+                            self.total_residuals[end_id as usize][j][i] 
+                        } else { 
+                            0.0
+                        }
+                    }).sum();
             }
         }
     }

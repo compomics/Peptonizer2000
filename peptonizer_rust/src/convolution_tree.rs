@@ -11,9 +11,10 @@ struct CTNode {
 
 impl CTNode {
     /// Create a new CTNode with a given probability vector.
-    fn new(joint_above: Vec<f64>) -> Self {
+    fn new(mut joint_above: Vec<f64>) -> Self {
+        normalize(&mut joint_above);
         Self {
-            joint_above: normalize(joint_above),
+            joint_above: joint_above,
             left_parent: None,
             right_parent: None,
             likelihood_below: None,
@@ -37,7 +38,9 @@ impl CTNode {
             &other_joint_vector.iter().rev().cloned().collect::<Vec<f64>>(),
             likelihood,
         );
-        normalize(result[starting_point..starting_point + answer_size].to_vec())
+        let mut result = result[starting_point..starting_point + answer_size].to_vec();
+        normalize(&mut result);
+        result
     }
 
     /// Computes message passing upwards to the left parent.
@@ -57,7 +60,9 @@ impl CTNode {
     /// Computes posterior probability.
     fn posterior(&self) -> Vec<f64> {
         let likelihood = self.likelihood_below.as_ref().expect("Likelihood below is None!");
-        normalize(self.joint_above.iter().zip(likelihood.iter()).map(|(a, b)| a * b).collect())
+        let mut result = self.joint_above.iter().zip(likelihood.iter()).map(|(a, b)| a * b).collect();
+        normalize(&mut result);
+        result
     }
 
     /// Returns messages up.
@@ -123,9 +128,13 @@ impl ConvolutionTree {
             self.all_layers.push(new_layer);
         }
 
-        let final_node = self.all_layers.last().unwrap()[0].clone();
-        self.last_node = Some(final_node.clone());
-        self.last_node.as_mut().unwrap().likelihood_below = Some(normalize(self.n_to_shared_likelihoods.clone()));
+        let mut final_node = self.all_layers.last().unwrap()[0].clone();
+        let mut likelihood_below = self.n_to_shared_likelihoods.clone();
+        normalize(&mut likelihood_below);
+        final_node.likelihood_below = Some(likelihood_below);
+
+        self.all_layers.last_mut().unwrap()[0] = final_node.clone();
+        self.last_node = Some(final_node);
     }
 
     /// Propagates messages backwards through the tree.
