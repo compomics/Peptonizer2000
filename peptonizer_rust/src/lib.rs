@@ -24,7 +24,7 @@ pub use pyo3::*;
 mod wasm {
     use wasm_bindgen::prelude::*;
     use crate::weight_taxa::perform_taxa_weighing;
-    use crate::zero_lookahead_belief_propagation::run_belief_propagation;
+    use crate::zero_lookahead_belief_propagation::{run_belief_propagation, parse_taxon_scores};
 
     extern crate wasm_bindgen;
     extern crate web_sys;
@@ -40,12 +40,13 @@ mod wasm {
         max_taxa: usize,
         taxa_rank: String
     ) -> Box<[JsValue]> {
+        console_error_panic_hook::set_once(); // Enable panic logging
         let (sequence_csv, taxa_weights_csv): (String, String) = perform_taxa_weighing(pep_taxa, pep_scores, pep_psm_counts, max_taxa, taxa_rank);
         Box::new([JsValue::from(sequence_csv), JsValue::from(taxa_weights_csv)])
     }
 
     #[wasm_bindgen]
-    pub fn run_belief_propagation_wasm(
+    pub fn execute_pepgm_wasm(
         graph: String,
         alpha: f64,
         beta: f64,
@@ -58,7 +59,9 @@ mod wasm {
         let max_iter: i32 = max_iter.unwrap_or(10000);
         let tol: f64 = tol.unwrap_or(0.006);
         
-        run_belief_propagation(graph, alpha, beta, regularized, prior, max_iter, tol)
+        let csv: String = run_belief_propagation(graph, alpha, beta, regularized, prior, max_iter, tol);
+
+        parse_taxon_scores(csv)
     }
 
 }

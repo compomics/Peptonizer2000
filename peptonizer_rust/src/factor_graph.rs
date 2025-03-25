@@ -43,9 +43,10 @@ pub struct CTFactorGraph {
 
 impl CTFactorGraph {
 
-    pub fn add_node_categories(&self, node_categories: &mut HashMap<String, String>) {
+    pub fn add_node_names_categories(&self, node_names: &mut Vec<String>, node_categories: &mut Vec<String>) {
         for node in &self.nodes {
-            node_categories.insert(node.get_name().to_string(), node.category().to_string());
+            node_names.push(node.get_name().to_string());
+            node_categories.push(node.category().to_string());
         }
     } 
 
@@ -149,6 +150,18 @@ impl CTFactorGraph {
     pub fn get_neighbor_node_id(&self, node: &Node, neighbor_id: i32) -> i32 {
         let (node1_id, node2_id) = self.edges[node.get_incident_edge(neighbor_id) as usize].get_node_ids();
         if node1_id == node.get_id() { node2_id } else { node1_id }
+    }
+
+    pub fn get_neighbor_index(&self, node: &Node, neighbor_id: i32) -> i32 {
+        self.get_neighbors(node).iter().position(|id| *id == neighbor_id).expect(
+            &format!("Node with id {} is not a neighbor of node with id {}", neighbor_id, node.get_id())
+        ) as i32
+    }
+
+    pub fn get_neighbor_index_from_id(&self, node_id: i32, neighbor_id: i32) -> i32 {
+        self.get_neighbors_from_id(node_id).iter().position(|id| *id == neighbor_id).expect(
+            &format!("Node with id {} is not a neighbor of node with id {}", neighbor_id, node_id)
+        ) as i32
     }
 
     pub fn add_ct_nodes(&mut self) {
