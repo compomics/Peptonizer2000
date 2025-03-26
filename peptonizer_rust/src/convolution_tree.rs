@@ -1,11 +1,10 @@
 use rustfft::{FftPlanner, num_complex::Complex, num_traits::Zero};
 use crate::array_utils::{normalize, log_normalize};
+use crate::utils::*;
 
 #[derive(Debug, Clone)]
 struct CTNode {
     joint_above: Vec<f64>,
-    left_parent: Option<Box<CTNode>>,
-    right_parent: Option<Box<CTNode>>,
     likelihood_below: Option<Vec<f64>>,
 }
 
@@ -15,8 +14,6 @@ impl CTNode {
         normalize(&mut joint_above);
         Self {
             joint_above: joint_above,
-            left_parent: None,
-            right_parent: None,
             likelihood_below: None,
         }
     }
@@ -25,8 +22,6 @@ impl CTNode {
     fn create_count_node(lhs: CTNode, rhs: CTNode) -> CTNode {
         let joint_above = fft_convolve(&lhs.joint_above, &rhs.joint_above);
         let mut node = CTNode::new(joint_above);
-        node.left_parent = Some(Box::new(lhs));
-        node.right_parent = Some(Box::new(rhs));
         node
     }
 
@@ -41,20 +36,6 @@ impl CTNode {
         let mut result = result[starting_point..starting_point + answer_size].to_vec();
         normalize(&mut result);
         result
-    }
-
-    /// Computes message passing upwards to the left parent.
-    fn message_up_left(&self) -> Vec<f64> {
-        let right_parent = self.right_parent.as_ref().expect("Right parent is missing!");
-        let left_parent = self.left_parent.as_ref().expect("Left parent is missing!");
-        self.message_up(left_parent.joint_above.len(), &right_parent.joint_above)
-    }
-
-    /// Computes message passing upwards to the right parent.
-    fn message_up_right(&self) -> Vec<f64> {
-        let left_parent = self.left_parent.as_ref().expect("Left parent is missing!");
-        let right_parent = self.right_parent.as_ref().expect("Right parent is missing!");
-        self.message_up(right_parent.joint_above.len(), &left_parent.joint_above)
     }
 
     /// Computes posterior probability.
@@ -76,7 +57,6 @@ pub struct ConvolutionTree {
     n_to_shared_likelihoods: Vec<f64>,
     log_length: usize,
     all_layers: Vec<Vec<CTNode>>,
-    last_node: Option<CTNode>,
     protein_layer: Vec<CTNode>,
     n_proteins: usize
 }
@@ -89,7 +69,6 @@ impl ConvolutionTree {
             n_to_shared_likelihoods,
             log_length,
             all_layers: Vec::new(),
-            last_node: None,
             protein_layer: Vec::new(),
             n_proteins: proteins.len()
         };
@@ -128,26 +107,25 @@ impl ConvolutionTree {
             self.all_layers.push(new_layer);
         }
 
-        let mut final_node = self.all_layers.last().unwrap()[0].clone();
         let mut likelihood_below = self.n_to_shared_likelihoods.clone();
         normalize(&mut likelihood_below);
-        final_node.likelihood_below = Some(likelihood_below);
-
-        self.all_layers.last_mut().unwrap()[0] = final_node.clone();
-        self.last_node = Some(final_node);
+        self.all_layers.last_mut().unwrap()[0].likelihood_below = Some(likelihood_below);
     }
 
     /// Propagates messages backwards through the tree.
     fn propagate_backward(&mut self) {
-        for L in (1..=self.log_length).rev() {
-            let layer = &mut self.all_layers[L];
+        for l in (1..=self.log_length).rev() {
+            for i in 0..self.all_layers[l].len() {
+                
+                let left_parent = &self.all_layers[l-1][2*i];
+                let right_parent = &self.all_layers[l-1][2*i + 1];
+                let node = &self.all_layers[l][i];
 
-            for node in layer.iter_mut() {
-                let likelihood_below_left = Some(node.message_up_left());
-                let likelihood_below_right = Some(node.message_up_right());
+                let likelihood_below_left = Some(node.message_up(left_parent.joint_above.len(), &right_parent.joint_above));
+                let likelihood_below_right = Some(node.message_up(right_parent.joint_above.len(), &left_parent.joint_above));
 
-                node.left_parent.as_mut().unwrap().likelihood_below = likelihood_below_left;
-                node.right_parent.as_mut().unwrap().likelihood_below = likelihood_below_right;
+                self.all_layers[l-1][2*i].likelihood_below = likelihood_below_left;
+                self.all_layers[l-1][2*i+1].likelihood_below = likelihood_below_right;
             }
         }
 
@@ -163,10 +141,9 @@ impl ConvolutionTree {
     }
 
     pub fn message_to_shared_likelihood(&self) -> Vec<f64> {
-        let last_node = self.last_node.as_ref().expect("Last node is missing");
 
         // Extract the required range
-        last_node.joint_above[..=self.n_proteins].to_vec()
+        self.all_layers.last().unwrap()[0].joint_above[..=self.n_proteins].to_vec()
     }
 }
 

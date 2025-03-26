@@ -137,7 +137,7 @@ impl Messages {
 
             // actual zero-look-ahead-BP part
             let (&(end_id, start_in_end_id), &residual) = self.priorities.iter().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap();
-            log(&format!("{} {} {}", end_id, start_in_end_id, residual));
+            max_residual = residual;
             
             let end_node = self.graph.get_node(end_id);
             let start_id = self.graph.get_neighbor_node_id(end_node, start_in_end_id);
@@ -184,11 +184,6 @@ impl Messages {
                 NodeType::TaxonNode { .. } | NodeType::PeptideNode { .. } => {
                     let incoming_messages: Vec<Vec<f64>> = self.msg_in[node.get_id() as usize].clone();
 
-                    for i in 0..incoming_messages.len() {
-                        if incoming_messages[i].len() != 2 {
-                            log("WRONG");
-                        }
-                    }
                     // need for logs to prevent underflow in very large multiplications
                     let incoming_messages_log: Vec<Vec<f64>> = incoming_messages.iter()
                         .map(|msg| msg.iter().map(|&x| x.ln()).collect())
@@ -281,7 +276,7 @@ impl Messages {
         if incoming_messages_end.is_empty() {
             // TODO: check in Python code the idea of the any statement (ask Tanja)
             let start_in_end_id: i32 = self.graph.get_neighbor_index(end_node, start_id);
-            if node_belief == get_initial_belief(end_node).values() { 
+            if node_belief == get_initial_belief(start_node).values() { 
                 return node_belief; 
             } else { 
                 return self.msg_in[end_id as usize][start_in_end_id as usize].clone();
@@ -379,13 +374,7 @@ impl Messages {
         for (neighbor_id_in_start, &neighbor_id) in self.graph.get_neighbors(start_node).iter().enumerate() {
             let neighbor = self.graph.get_node(neighbor_id);
             match neighbor.get_subtype() {
-                
                 NodeType::FactorNode { .. } => {
-                    prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
-                    old_prot_prob_list.push(self.msg_in_log[start_id as usize][neighbor_id_in_start].clone());
-                    prot_list.push(neighbor_id);
-                },
-                _ => {
                     peptides.push(neighbor_id);
                     
                     // Prevent underflow: Replace zeros with 1e-30
@@ -395,6 +384,11 @@ impl Messages {
                     }
 
                     last_neighbor_id = Some(neighbor_id_in_start);
+                },
+                _ => {
+                    prot_prob_list.push(self.msg_in[start_id as usize][neighbor_id_in_start].clone());
+                    old_prot_prob_list.push(self.msg_in_log[start_id as usize][neighbor_id_in_start].clone());
+                    prot_list.push(neighbor_id);
                 }
             }
         }

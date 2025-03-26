@@ -135,25 +135,27 @@ async function generateGraph(data: GenerateGraphTaskData): Promise<GenerateGraph
     };
 }
 
+
 async function executePepgm(data: ExecutePepgmTaskData, workerId: number): Promise<ExecutePepgmTaskDataResult> {
 
     const taxonScoresJson = execute_pepgm_wasm(data.graphXml, data.alpha, data.beta, true, data.prior);
-    console.log(taxonScoresJson);
-    // return { taxonScoresJson };
 
-    self.pyodide.globals.set('graph', data.graphXml);
+    return {
+        taxonScoresJson
+    };
+
+    
+    /*self.pyodide.globals.set('graph', data.graphXml);
     self.pyodide.globals.set('alpha', data.alpha);
     self.pyodide.globals.set('beta', data.beta);
     self.pyodide.globals.set('prior', data.prior);
     self.pyodide.globals.set('worker_id', workerId);
 
-    const taxonScoresJson_py = await self.pyodide.runPythonAsync(executePepgmPythonCode);
-
-    console.log(taxonScoresJson_py);
+    const taxonScoresJson = await self.pyodide.runPythonAsync(executePepgmPythonCode);
 
     return {
-        taxonScoresJson_py
-    };
+        taxonScoresJson
+    };*/
 }
 
 async function clusterTaxa(data: ClusterTaxaTaskData): Promise<ClusterTaxaTaskDataResult> {
